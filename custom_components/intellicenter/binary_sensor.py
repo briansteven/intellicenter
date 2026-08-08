@@ -2,7 +2,10 @@
 
 import logging
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
@@ -11,9 +14,13 @@ from .const import DOMAIN
 from .pyintellicenter import (
     BODY_ATTR,
     CIRCUIT_TYPE,
+    GPM_ATTR,
     HEATER_ATTR,
     HEATER_TYPE,
     HTMODE_ATTR,
+    PUMP_TYPE,
+    PWR_ATTR,
+    RPM_ATTR,
     STATUS_ATTR,
     ModelController,
     PoolObject,
@@ -62,8 +69,8 @@ async def async_setup_entry(
                     extraStateAttributes={"VACFLO"},
                 )
             )
-        elif obj.objtype == "PUMP":
-            sensors.append(PoolBinarySensor(entry, controller, obj, valueForON="10"))
+        elif obj.objtype == PUMP_TYPE:
+            sensors.append(PumpBinarySensor(entry, controller, obj))
     async_add_entities(sensors)
 
 
@@ -89,6 +96,54 @@ class PoolBinarySensor(PoolEntity, BinarySensorEntity):
     def is_on(self):
         """Return true if sensor is on."""
         return self._poolObject[self._attribute_key] == self._valueForON
+
+
+# -------------------------------------------------------------------------------------
+
+# Real time telemetry a variable speed pump publishes while it turns, most to least
+# reliable. A pump that publishes none of these has only STATUS to go on.
+PUMP_ACTIVITY_ATTRS = (RPM_ATTR, PWR_ATTR, GPM_ATTR)
+
+
+class PumpBinarySensor(PoolEntity, BinarySensorEntity):
+    """Representation of a Pentair pump, on while it is actually running."""
+
+    _attr_device_class = BinarySensorDeviceClass.RUNNING
+
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        controller: ModelController,
+        poolObject: PoolObject,
+        **kwargs,
+    ):
+        """Initialize."""
+        super().__init__(entry, controller, poolObject, **kwargs)
+        self._activityAttrs = [
+            attr for attr in PUMP_ACTIVITY_ATTRS if poolObject[attr] is not None
+        ]
+
+    @property
+    def is_on(self):
+        """Return true if the pump is running."""
+        if not self._activityAttrs:
+            # Single speed pumps report no telemetry, so STATUS is all we have.
+            return self._poolObject[STATUS_ATTR] == self._poolObject.onStatus
+        for attr in self._activityAttrs:
+            try:
+                if float(self._poolObject[attr]) > 0:
+                    return True
+            except (TypeError, ValueError):
+                continue
+        return False
+
+    def isUpdated(self, updates: dict[str, dict[str, str]]) -> bool:
+        """Return true if the entity is updated by the updates from Intellicenter."""
+
+        keys = updates.get(self._poolObject.objnam, {}).keys()
+        if not self._activityAttrs:
+            return STATUS_ATTR in keys
+        return bool(set(self._activityAttrs) & keys)
 
 
 # -------------------------------------------------------------------------------------
