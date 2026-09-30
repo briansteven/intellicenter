@@ -27,6 +27,7 @@ GPM_ATTR = "GPM"
 HEATER_ATTR = "HEATER"
 HNAME_ATTR = "HNAME"
 HTMODE_ATTR = "HTMODE"
+HTSRC_ATTR = "HTSRC"
 LISTORD_ATTR = "LISTORD"
 LOTMP_ATTR = "LOTMP"
 LSTTMP_ATTR = "LSTTMP"
@@ -47,6 +48,7 @@ RPM_ATTR = "RPM"
 SALT_ATTR = "SALT"
 SEC_ATTR = "SEC"
 SELECT_ATTR = "SELECT"
+SHARE_ATTR = "SHARE"
 SHOMNU_ATTR = "SHOMNU"
 SNAME_ATTR = "SNAME"
 SOURCE_ATTR = "SOURCE"
@@ -96,7 +98,7 @@ BODY_ATTRIBUTES = {
     "HITMP",  # (int) maximum temperature to set
     HNAME_ATTR,  # equals to OBJNAM
     HTMODE_ATTR,  # (int) >0 if currently heating, 0 if not
-    "HTSRC",  # (objnam) the heating source (or '00000')
+    HTSRC_ATTR,  # (objnam) the heating source (or '00000')
     LISTORD_ATTR,  # (int) used to order in UI
     LOTMP_ATTR,  # (int) desired temperature
     LSTTMP_ATTR,  # (int) last recorded temperature
@@ -107,7 +109,7 @@ BODY_ATTRIBUTES = {
     READY_ATTR,  # (ON/OFF) ???
     "SEC",  # (int) ???
     "SETPT",  # (int) set point (same as 'LOTMP' AFAIK)
-    "SHARE",  # (objnam) sharing with that other body?
+    SHARE_ATTR,  # (objnam) the other body sharing equipment with this one
     SNAME_ATTR,  # (str) friendly name
     "SRCTYP",  # ??? only seeing "GENERIC"
     STATIC_ATTR,  # (ON/OFF) 'OFF'
@@ -219,6 +221,7 @@ HEATER_ATTRIBUTES = {
     LISTORD_ATTR,  # (int) used to order in UI
     PARENT_ATTR,  # (objnam) parent (module) for this heater
     READY_ATTR,  # (ON/OFF)
+    SHARE_ATTR,  # 'SHARE' when the heater also serves the shared body
     SHOMNU_ATTR,  # (str) permissions
     SNAME_ATTR,  # (str) friendly name
     "START",  # (int) ??
