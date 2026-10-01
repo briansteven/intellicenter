@@ -1,0 +1,78 @@
+name: Fork watch
+
+# Weekly report of what changed in the other IntelliCenter forks, upstream pull
+# requests, issues and releases, plus a test run against the latest Home
+# Assistant. Published on the fork-watch branch (report.md) for review.
+
+on:
+  schedule:
+    - cron: "17 13 * * 1" # Mondays 13:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  latest-ha:
+    name: Tests against the latest Home Assistant
+    runs-on: ubuntu-latest
+    outputs:
+      outcome: ${{ steps.test.outcome }}
+      version: ${{ steps.version.outputs.version }}
+      summary: ${{ steps.summary.outputs.summary }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: pip install --upgrade pytest-homeassistant-custom-component
+        continue-on-error: true
+      - id: version
+        run: echo "version=$(python -c 'import homeassistant.const as c; print(c.__version__)' 2>/dev/null || echo 'not installed')" >> "$GITHUB_OUTPUT"
+      - id: test
+        continue-on-error: true
+        run: python -m pytest tests_ha -q -rf -W default::DeprecationWarning 2>&1 | tee pytest.txt; exit ${PIPESTATUS[0]}
+      - id: summary
+        if: always()
+        run: |
+          {
+            echo "summary<<EOF_SUMMARY"
+            grep -E "FAILED|ERROR|Error|passed|failed|DeprecationWarning" pytest.txt | tail -40 || true
+            echo "EOF_SUMMARY"
+          } >> "$GITHUB_OUTPUT"
+
+  report:
+    name: Build the report
+    needs: latest-ha
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Build the report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST_HA_OUTCOME: ${{ needs.latest-ha.outputs.outcome }}
+          LATEST_HA_VERSION: ${{ needs.latest-ha.outputs.version }}
+          LATEST_HA_SUMMARY: ${{ needs.latest-ha.outputs.summary }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/fw"
+          git fetch --depth=1 origin +refs/heads/fork-watch:refs/remotes/origin/fork-watch || true
+          git show origin/fork-watch:state.json > "$RUNNER_TEMP/fw/state.json" 2>/dev/null || echo '{}' > "$RUNNER_TEMP/fw/state.json"
+          python .github/fork_watch.py "$RUNNER_TEMP/fw/state.json" "$RUNNER_TEMP/fw"
+          cat "$RUNNER_TEMP/fw/report.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish on the fork-watch branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse --verify --quiet origin/fork-watch; then
+            git switch -c fork-watch origin/fork-watch
+          else
+            git switch --orphan fork-watch
+          fi
+          cp "$RUNNER_TEMP/fw/state.json" "$RUNNER_TEMP/fw/report.md" .
+          git add state.json report.md
+          git commit -m "Fork watch $(date -u +%F)"
+          git push origin fork-watch
