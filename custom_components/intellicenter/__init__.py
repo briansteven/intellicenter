@@ -1,5 +1,4 @@
 """Pentair IntelliCenter Integration."""
-import asyncio
 from functools import partial
 import logging
 import threading
@@ -115,6 +114,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         UPDATE_SIGNAL = DOMAIN + "_UPDATE_" + entry.entry_id
         CONNECTION_SIGNAL = DOMAIN + "_CONNECTION_" + entry.entry_id
 
+        # platforms are only set up once the system has been reached
+        platforms_set_up = False
+
         def started(self, controller):
 
             _LOGGER.info(f"connected to system: '{controller.systemInfo.propName}'")
@@ -125,6 +127,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             async def setup_platforms():
                 """Set up platforms."""
                 await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+                self.platforms_set_up = True
 
                 # dispatcher.async_dispatcher_send(hass, self.CONNECTION_SIGNAL, True)
 
@@ -165,12 +168,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN][entry.entry_id] = handler
 
         # subscribe to Home Assistant STOP event to do some cleanup
+        # (and unsubscribe if the entry is unloaded first, e.g. on a reload)
 
         async def on_hass_stop(event):
             """Stop push updates when hass stops."""
             handler.stop()
 
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, on_hass_stop)
+        entry.async_on_unload(
+            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, on_hass_stop)
+        )
 
         return True
     except ConnectionRefusedError as err:
@@ -180,19 +186,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload IntelliCenter config entry."""
 
-    # Unload entities for this entry/device.
+    handler = hass.data[DOMAIN].get(entry.entry_id)
 
-    all(
-        await asyncio.gather(
-            *[
-                hass.config_entries.async_forward_entry_unload(entry, platform)
-                for platform in PLATFORMS
-            ]
-        )
-    )
+    # Unload entities for this entry/device, if they were ever set up
+    # (they are not until the system has been reached)
+    unload_ok = True
+    if handler is None or handler.platforms_set_up:
+        unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+    if not unload_ok:
+        return False
 
     # Cleanup
-    handler = hass.data[DOMAIN].pop(entry.entry_id, None)
+    hass.data[DOMAIN].pop(entry.entry_id, None)
 
     _LOGGER.info(f"unloading integration {entry.entry_id}")
     if handler:

@@ -67,3 +67,42 @@ async def test_silent_panel_goes_unavailable_then_recovers(
     await wait_for(
         lambda: hass.states.get("switch.test_pool_pool").state == "on", timeout=10
     )
+
+
+async def test_reload(hass: HomeAssistant, integration, panel) -> None:
+    """Reloading the entry reconnects and brings the entities back."""
+    assert await hass.config_entries.async_reload(integration.entry_id)
+    await wait_for(lambda: hass.states.get("switch.test_pool_pool").state == "on")
+    assert panel.connections == 2
+
+
+async def test_unload_before_the_panel_is_reached(
+    hass: HomeAssistant, panel, caplog
+) -> None:
+    """An entry whose panel was never reached unloads cleanly."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+    from unittest.mock import patch
+
+    import custom_components.intellicenter as ic
+    from homeassistant.config_entries import ConfigEntryState
+
+    from homeassistant.setup import async_setup_component
+
+    # in a real installation other integrations have loaded these already
+    for platform in ic.PLATFORMS:
+        assert await async_setup_component(hass, platform, {})
+
+    real_controller = ic.ModelController
+    panel.silent = True
+
+    def controller_factory(host, model, **kwargs):
+        return real_controller(host, model, port=panel.port, **kwargs)
+
+    entry = MockConfigEntry(domain="intellicenter", data={"host": "127.0.0.1"})
+    entry.add_to_hass(hass)
+    with patch.object(ic, "ModelController", controller_factory):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await wait_for(lambda: panel.connections == 1)
+        assert await hass.config_entries.async_unload(entry.entry_id)
+    assert entry.state is ConfigEntryState.NOT_LOADED
+    assert "Error unloading entry" not in caplog.text
