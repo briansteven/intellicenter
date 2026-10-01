@@ -18,6 +18,8 @@ class FakeIntelliCenter:
         self.silent = False  # when True, requests are read but never answered
         self.drop_connections = 0  # reset this many connections on their 1st request
         self.error_after_first = False  # answer later requests with an error code
+        # ... and with another messageID, as the real panel sometimes does
+        self.mismatched_error_ids = False
         self.connections = 0
         self.requests = 0
         self._server = None
@@ -61,10 +63,13 @@ class FakeIntelliCenter:
                 if self.silent:
                     continue
                 code = "400" if (self.error_after_first and answered) else "200"
+                msg_id = request["messageID"]
+                if code != "200" and self.mismatched_error_ids:
+                    msg_id = "not-" + msg_id
                 answered += 1
                 reply = {
                     "command": "SendParamList",
-                    "messageID": request["messageID"],
+                    "messageID": msg_id,
                     "response": code,
                     "objectList": [
                         {

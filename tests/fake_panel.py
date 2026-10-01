@@ -164,6 +164,7 @@ class FakePanel:
         """Initialize the fake panel with a (deep copied) object model."""
         self.objects = copy.deepcopy(objects or DEFAULT_OBJECTS)
         self.silent = False  # when True, requests are read but never answered
+        self.response_delay = 0  # seconds to wait before answering each request
         self.requests = []  # every request received, in order
         self.connections = 0
         self._server = None
@@ -296,6 +297,8 @@ class FakePanel:
                     self.requests.append(request)
                     if self.silent:
                         continue
+                    if self.response_delay:
+                        await asyncio.sleep(self.response_delay)
                     for reply in self._answer(request):
                         writer.write((json.dumps(reply) + "\r\n").encode())
                     await writer.drain()

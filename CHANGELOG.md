@@ -5,6 +5,24 @@ v2.0.0. Upgrading from any of these versions is a drop-in replacement: no
 configuration changes, and entities keep their IDs. The one deliberate exception
 is the water heater state in 2.2.0.
 
+## 2.2.2
+
+### Connection
+
+- **An answer the panel mislabels no longer drops the connection.** The panel
+  sometimes answers a request with an error carrying another request's ID. When
+  that happened to the keep-alive check, the integration didn't recognize the
+  answer and dropped a working connection after 30 seconds. Any answer from the
+  panel now counts. (Updates the panel pushes still don't: if requests go
+  unanswered, reconnecting is what gets commands working again.)
+- **A slow panel can finish connecting.** Connecting loads every object in
+  several requests, and the 60-second limit applied to all of them together, so
+  a large or slow panel that kept answering could be cut off and retried
+  forever. The attempt now fails only when the panel has answered nothing for 60
+  seconds.
+
+Both found by GitHub Copilot's review of dwradcliffe/intellicenter#53.
+
 ## 2.2.1
 
 ### Fixed: heaters belong to the bodies they're assigned to

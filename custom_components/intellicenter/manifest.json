@@ -9,7 +9,7 @@
     "issue_tracker": "https://github.com/briansteven/intellicenter/issues",
     "quality_scale": "gold",
     "requirements": [],
-    "version": "2.2.1",
+    "version": "2.2.2",
     "zeroconf": [
         { "type":"_http._tcp.local.", "name":"pentair*" }
       ]
