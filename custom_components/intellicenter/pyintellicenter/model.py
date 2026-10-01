@@ -106,7 +106,7 @@ class PoolObject:
         for key in sorted(set(self._properties.keys())):
             value = self._properties[key]
             if type(value) is list:
-                value = "[" + ",".join(map(lambda v: f"{  {str(v)} }", value)) + "]"
+                value = "[" + ",".join(map(lambda v: str({str(v)}), value)) + "]"
             result += f" {key}: {value}"
         return result
 

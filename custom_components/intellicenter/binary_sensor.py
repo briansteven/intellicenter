@@ -46,7 +46,7 @@ async def async_setup_entry(
                     entry,
                     controller,
                     obj,
-                    icon = "mdi:snowflake"
+                    icon="mdi:snowflake"
                 )
             )
         elif obj.objtype == HEATER_TYPE:
