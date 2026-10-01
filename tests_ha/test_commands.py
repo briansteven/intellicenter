@@ -79,3 +79,30 @@ async def test_water_heater_turn_on_and_off(hass: HomeAssistant, integration, pa
         "water_heater", "turn_on", {"entity_id": entity_id}, blocking=True
     )
     await wait_for(lambda: {"HEATER": "H0001"} in panel.changes("B1202"))
+
+
+async def test_request_from_another_thread_is_sent_from_the_loop(
+    hass: HomeAssistant, integration, panel
+) -> None:
+    """A change requested from a worker thread is handed over to the event loop."""
+    from custom_components.intellicenter.pyintellicenter.protocol import ICProtocol
+
+    component = hass.data["entity_components"]["switch"]
+    entity = component.get_entity("switch.test_pool_waterfall")
+
+    loop_thread = threading.get_ident()
+    write_threads = []
+    original = ICProtocol._writeToTransport
+
+    def recording_write(self, request):
+        write_threads.append(threading.get_ident())
+        return original(self, request)
+
+    ICProtocol._writeToTransport = recording_write
+    try:
+        await hass.async_add_executor_job(entity.requestChanges, {"STATUS": "ON"})
+        await wait_for(lambda: {"STATUS": "ON"} in panel.changes("C0004"))
+    finally:
+        ICProtocol._writeToTransport = original
+
+    assert set(write_threads) == {loop_thread}

@@ -1,7 +1,7 @@
 """Pentair IntelliCenter Integration."""
+import asyncio
 from functools import partial
 import logging
-import threading
 from typing import Any, Optional
 
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
@@ -330,7 +330,12 @@ class PoolEntity(Entity):
         transports are not thread safe, so a request made from any other thread
         is handed over to the loop instead of being written from that thread.
         """
-        if self.hass is None or self.hass.loop_thread_id == threading.get_ident():
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:  # not in an event loop at all
+            running_loop = None
+
+        if self.hass is None or running_loop is self.hass.loop:
             self._controller.requestChanges(
                 self._poolObject.objnam, changes, waitForResponse=False
             )
