@@ -65,3 +65,17 @@ async def test_commands_are_sent_from_the_event_loop(
 
     assert write_threads, "nothing was sent to the panel"
     assert set(write_threads) == {loop_thread}
+
+
+async def test_water_heater_turn_on_and_off(hass: HomeAssistant, integration, panel) -> None:
+    """Water heaters support on/off, turning on with the heater used last."""
+    entity_id = "water_heater.test_pool_spa"
+    await hass.services.async_call(
+        "water_heater", "turn_off", {"entity_id": entity_id}, blocking=True
+    )
+    await wait_for(lambda: {"HEATER": "00000"} in panel.changes("B1202"))
+
+    await hass.services.async_call(
+        "water_heater", "turn_on", {"entity_id": entity_id}, blocking=True
+    )
+    await wait_for(lambda: {"HEATER": "H0001"} in panel.changes("B1202"))

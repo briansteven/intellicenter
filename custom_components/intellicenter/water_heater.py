@@ -111,7 +111,7 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
             extraStateAttributes=[HEATER_ATTR, HTMODE_ATTR],
         )
         self._heater_list = heater_list
-        self._lastHeater = self._poolObject[HEATER_ATTR]
+        self._lastHeater = self._poolObject[HEATER_ATTR] or NULL_OBJNAM
         self._attr_icon = "mdi:thermometer"
 
     @property
@@ -120,7 +120,7 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
 
         state_attributes = super().extra_state_attributes
 
-        if self._lastHeater != NULL_OBJNAM:
+        if self._lastHeater not in (None, NULL_OBJNAM):
             state_attributes[self.LAST_HEATER_ATTR] = self._lastHeater
 
         return state_attributes
@@ -130,7 +130,7 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
         """Return the current state."""
         status = self._poolObject[STATUS_ATTR]
         heater = self._poolObject[HEATER_ATTR]
-        if status == "OFF" or heater == NULL_OBJNAM:
+        if status == "OFF" or heater in (None, NULL_OBJNAM):
             return STATE_OFF
         htmode = self._poolObject[HTMODE_ATTR]
         return STATE_ON if htmode != "0" else STATE_IDLE
@@ -143,7 +143,11 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
     @property
     def supported_features(self):
         """Return the list of supported features."""
-        return WaterHeaterEntityFeature.TARGET_TEMPERATURE | WaterHeaterEntityFeature.OPERATION_MODE
+        return (
+            WaterHeaterEntityFeature.TARGET_TEMPERATURE
+            | WaterHeaterEntityFeature.OPERATION_MODE
+            | WaterHeaterEntityFeature.ON_OFF
+        )
 
     @property
     def temperature_unit(self):
@@ -184,20 +188,23 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
         target_temperature = kwargs.get(ATTR_TEMPERATURE)
         self.requestChanges({LOTMP_ATTR: str(int(target_temperature))})
 
+    def _heaterName(self, objnam: str) -> str:
+        """Return the name of a heater, falling back to its id if it has none."""
+        heater = self._controller.model[objnam]
+        return heater.sname if heater is not None and heater.sname else objnam
+
     @property
     def current_operation(self):
         """Return current operation."""
         heater = self._poolObject[HEATER_ATTR]
         if heater in self._heater_list:
-            return self._controller.model[heater].sname
+            return self._heaterName(heater)
         return STATE_OFF
 
     @property
     def operation_list(self):
         """Return the list of available operation modes."""
-        return [STATE_OFF] + [
-            self._controller.model[heater].sname for heater in self._heater_list
-        ]
+        return [STATE_OFF] + [self._heaterName(heater) for heater in self._heater_list]
 
     async def async_set_operation_mode(self, operation_mode: str) -> None:
         """Set new target operation mode."""
@@ -205,21 +212,21 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
             self._turnOff()
         else:
             for heater in self._heater_list:
-                if operation_mode == self._controller.model[heater].sname:
+                if operation_mode == self._heaterName(heater):
                     self.requestChanges({HEATER_ATTR: heater})
                     break
 
-    async def async_turn_on(self) -> None:
-        """Turn the entity on."""
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn heating on, with the heater used last if there is one."""
         heater = (
             self._lastHeater
-            if self._lastHeater != NULL_OBJNAM
+            if self._lastHeater in self._heater_list
             else self._heater_list[0]
         )
         self.requestChanges({HEATER_ATTR: heater})
 
-    async def async_turn_off(self) -> None:
-        """Turn the entity off."""
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn heating off."""
         self._turnOff()
 
     def _turnOff(self):
@@ -236,7 +243,7 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
             & myUpdates.keys()
         )
 
-        if updated and self._poolObject[HEATER_ATTR] != NULL_OBJNAM:
+        if updated and self._poolObject[HEATER_ATTR] not in (None, NULL_OBJNAM):
             self._lastHeater = self._poolObject[HEATER_ATTR]
 
         return updated
@@ -253,5 +260,6 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
 
             if last_state:
                 value = last_state.attributes.get(self.LAST_HEATER_ATTR)
-                if value != NULL_OBJNAM:
+                # ignore a missing value or a heater no longer wired to the body
+                if value in self._heater_list:
                     self._lastHeater = value
