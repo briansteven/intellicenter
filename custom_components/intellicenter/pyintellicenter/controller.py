@@ -6,7 +6,6 @@ import contextlib
 from hashlib import blake2b
 import logging
 import time
-import traceback
 from typing import Optional
 
 from .attributes import (
@@ -23,7 +22,6 @@ from .model import PoolModel
 from .protocol import ICProtocol
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.INFO)
 
 
 class CommandError(Exception):
@@ -149,6 +147,21 @@ class BaseController:
     def host(self) -> str:
         """Return the host the controller is connected to."""
         return self._host
+
+    @property
+    def connected(self) -> bool:
+        """Return True while there is a connection to the system."""
+        return self._transport is not None
+
+    @property
+    def keepAliveInterval(self) -> Optional[float]:
+        """Return the seconds between checks that the system still answers."""
+        return self._keepAliveInterval
+
+    @property
+    def keepAliveTimeout(self) -> Optional[float]:
+        """Return how long a keep-alive request may stay unanswered."""
+        return self._keepAliveTimeout
 
     @property
     def lastResponse(self) -> Optional[float]:
@@ -444,9 +457,9 @@ class ModelController(BaseController):
                 res = await self.sendCmd("RequestParamList", {"objectList": query})
                 self._applyUpdates(res["objectList"])
 
-        except Exception as err:
-            traceback.print_exc()
-            raise err
+        except Exception:
+            _LOGGER.debug("failed to load the model", exc_info=True)
+            raise
 
     def receivedQueryResult(self, queryName: str, answer):
         """Handle the result of all 'getQuery' responses."""
@@ -581,10 +594,27 @@ class ConnectionHandler:
         """
         return min(currentDelay * 1.5, self._maxTimeBetweenReconnects)
 
+    async def connect(self, timeout: float | None = None):
+        """Connect now, raising if that fails; reconnect automatically afterwards.
+
+        timeout: like startTimeout, but for this attempt only.
+
+        If the attempt fails, the handler is stopped (nothing keeps trying in
+        the background) and the error is raised: create a new handler to try
+        again.
+        """
+        try:
+            await self._startController(timeout)
+        except BaseException:
+            self.stop()
+            raise
+        self._firstTime = False
+
     async def _starter(self, initialDelay=0):
         """Attempt to start the controller."""
         started = False
         delay = self._timeBetweenReconnects
+        failures = 0
         while not started:
             try:
                 if initialDelay:
@@ -605,20 +635,27 @@ class ConnectionHandler:
                 else:
                     self._notify(self.reconnected, self._controller)
             except Exception as err:
-                _LOGGER.error(f"cannot start: {err!r}")
+                # an outage can last hours: say why once, not at every attempt
+                failures += 1
+                _LOGGER.log(
+                    logging.INFO if failures == 1 else logging.DEBUG,
+                    f"cannot connect to {self._controller.host} ({err!r}),"
+                    " will keep trying",
+                )
                 # don't leave a half-open connection behind before retrying
                 self._controller.stop()
                 self.retrying(delay)
                 await asyncio.sleep(delay)
                 delay = self._next_delay(delay)
 
-    async def _startController(self):
+    async def _startController(self, timeout: float | None = None):
         """Start the controller, giving up if the system stops answering.
 
-        The attempt fails when the system has answered nothing for startTimeout
-        seconds, however long the whole start takes.
+        The attempt fails when the system has answered nothing for timeout
+        (default: startTimeout) seconds, however long the whole start takes.
         """
-        if not self._startTimeout:
+        timeout = timeout or self._startTimeout
+        if not timeout:
             await self._controller.start()
             return
 
@@ -629,11 +666,10 @@ class ConnectionHandler:
                 answered = self._controller.lastResponse
                 if answered is not None and answered > lastActivity:
                     lastActivity = answered
-                remaining = lastActivity + self._startTimeout - time.monotonic()
+                remaining = lastActivity + timeout - time.monotonic()
                 if remaining <= 0:
                     raise asyncio.TimeoutError(
-                        f"no answer from {self._controller.host}"
-                        f" in {self._startTimeout}s"
+                        f"no answer from {self._controller.host} in {timeout}s"
                     )
                 done, _ = await asyncio.wait({task}, timeout=remaining)
                 if done:
@@ -657,8 +693,9 @@ class ConnectionHandler:
     def _diconnectedCallback(self, controller, err):
         """Handle the disconnection of the underlying controller."""
         if not self._stopped:
-            _LOGGER.error(
-                f"system disconnected  from {self._controller.host} {err if err else ''}"
+            _LOGGER.warning(
+                f"lost the connection to {self._controller.host}"
+                f"{f' ({err})' if err else ''}, reconnecting"
             )
             # a connection dropped while (re)connecting is retried by the
             # attempt in progress: never run two reconnection loops at once
@@ -684,7 +721,7 @@ class ConnectionHandler:
 
     def retrying(self, delay):
         """Handle the fact that we will retry connection in {delay} seconds."""
-        _LOGGER.info(f"will attempt to reconnect in {delay}s")
+        _LOGGER.debug(f"will attempt to reconnect in {delay}s")
 
     def updated(self, controller: ModelController, updates: dict):
         """Handle the callback that our underlying system has been modified.

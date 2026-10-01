@@ -7,11 +7,12 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 
-from . import PoolEntity
-from .const import DOMAIN
+from .entity import PoolEntity
 from .pyintellicenter import (
+    ACT_ATTR,
     BODY_TYPE,
     CIRCUIT_TYPE,
     GPM_ATTR,
@@ -21,7 +22,11 @@ from .pyintellicenter import (
     PUMP_TYPE,
     PWR_ATTR,
     RPM_ATTR,
+    SCHED_TYPE,
+    SERVICE_ATTR,
     STATUS_ATTR,
+    SYSTEM_TYPE,
+    VACFLO_ATTR,
     ModelController,
     PoolObject,
 )
@@ -34,43 +39,32 @@ async def async_setup_entry(
 ):
     """Load pool sensors based on a config entry."""
 
-    controller: ModelController = hass.data[DOMAIN][entry.entry_id].controller
+    controller: ModelController = entry.runtime_data.controller
 
     sensors = []
 
     obj: PoolObject
     for obj in controller.model.objectList:
         if obj.objtype == CIRCUIT_TYPE and obj.subtype == "FRZ":
-            sensors.append(
-                PoolBinarySensor(
-                    entry,
-                    controller,
-                    obj,
-                    icon="mdi:snowflake"
-                )
-            )
+            sensors.append(FreezeProtection(entry, controller, obj))
         elif obj.objtype == HEATER_TYPE:
-            sensors.append(
-                HeaterBinarySensor(
-                    entry,
-                    controller,
-                    obj,
-                )
-            )
-        elif obj.objtype == "SCHED":
+            sensors.append(HeaterBinarySensor(entry, controller, obj))
+        elif obj.objtype == SCHED_TYPE:
             sensors.append(
                 PoolBinarySensor(
                     entry,
                     controller,
                     obj,
-                    attribute_key="ACT",
-                    name="+ (schedule)",
+                    attribute_key=ACT_ATTR,
+                    name=f"{obj.sname or obj.objnam} schedule",
                     enabled_by_default=False,
-                    extraStateAttributes={"VACFLO"},
+                    extraStateAttributes={VACFLO_ATTR},
                 )
             )
         elif obj.objtype == PUMP_TYPE:
             sensors.append(PumpBinarySensor(entry, controller, obj))
+        elif obj.objtype == SYSTEM_TYPE and obj[SERVICE_ATTR]:
+            sensors.append(ServiceMode(entry, controller, obj))
     async_add_entities(sensors)
 
 
@@ -99,6 +93,43 @@ class PoolBinarySensor(PoolEntity, BinarySensorEntity):
         if value is None:
             return None
         return value == self._valueForON
+
+
+class FreezeProtection(PoolBinarySensor):
+    """On while the IntelliCenter protects the equipment from freezing."""
+
+    _attr_device_class = BinarySensorDeviceClass.COLD
+
+
+class ServiceMode(PoolBinarySensor):
+    """On while the IntelliCenter isn't in its normal (automatic) mode.
+
+    SERVICE is AUTO normally, and MANUAL (service mode) or TIMOUT (service mode
+    that ends by itself) while equipment is worked on: the IntelliCenter then
+    suspends its normal operation, such as schedules.
+    """
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, entry, controller, poolObject):
+        """Initialize."""
+        super().__init__(
+            entry,
+            controller,
+            poolObject,
+            attribute_key=SERVICE_ATTR,
+            name="Service mode",
+            icon="mdi:account-wrench",
+            extraStateAttributes={SERVICE_ATTR},
+        )
+
+    @property
+    def is_on(self):
+        """Return true when not in automatic mode."""
+        value = self._poolObject[SERVICE_ATTR]
+        if value is None:
+            return None
+        return value != "AUTO"
 
 
 # -------------------------------------------------------------------------------------
@@ -153,7 +184,9 @@ class PumpBinarySensor(PoolEntity, BinarySensorEntity):
 
 
 class HeaterBinarySensor(PoolEntity, BinarySensorEntity):
-    """Representation of a Heater binary sensor."""
+    """A heater, on while it heats (or, for a heat pump, cools) a body."""
+
+    _attr_device_class = BinarySensorDeviceClass.RUNNING
 
     def __init__(
         self,
@@ -168,11 +201,11 @@ class HeaterBinarySensor(PoolEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        """Return true if the heater is heating any body of water.
+        """Return true if the heater is running for any body of water.
 
-        Every body is considered, not only those in the heater's BODY attribute:
-        on shared pool/spa equipment that attribute can list only one of them
-        while the heater also heats the other.
+        Every body that selects the heater counts, not only those it is
+        assigned to (the heater's BODY): some IntelliCenters heat a body with a
+        heater that isn't assigned to it.
         """
         for body in self._controller.model.getByType(BODY_TYPE):
             if (

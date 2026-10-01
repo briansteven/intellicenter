@@ -12,27 +12,27 @@ from conftest import wait_for
 @pytest.mark.parametrize(
     ("domain", "service", "data", "objnam", "expected"),
     [
-        ("switch", "turn_on", {"entity_id": "switch.test_pool_spa"}, "B1202", {"STATUS": "ON"}),
+        ("switch", "turn_on", {"entity_id": "switch.spa"}, "B1202", {"STATUS": "ON"}),
         ("switch", "turn_off", {"entity_id": "switch.test_pool_waterfall"}, "C0004", {"STATUS": "OFF"}),
         ("light", "turn_on", {"entity_id": "light.test_pool_pool_light"}, "C0002", {"STATUS": "ON"}),
         (
             "number",
             "set_value",
-            {"entity_id": "number.test_pool_intellichlor_1_output_pool", "value": 30},
+            {"entity_id": "number.intellichlor_1_pool_output", "value": 30},
             "CHR01",
             {"PRIM": "30"},
         ),
         (
             "water_heater",
             "set_temperature",
-            {"entity_id": "water_heater.test_pool_spa", "temperature": 101},
+            {"entity_id": "water_heater.spa_heater", "temperature": 101},
             "B1202",
             {"LOTMP": "101"},
         ),
         (
             "water_heater",
             "set_operation_mode",
-            {"entity_id": "water_heater.test_pool_spa", "operation_mode": "off"},
+            {"entity_id": "water_heater.spa_heater", "operation_mode": "off"},
             "B1202",
             {"HEATER": "00000"},
         ),
@@ -69,7 +69,7 @@ async def test_commands_are_sent_from_the_event_loop(
 
 async def test_water_heater_turn_on_and_off(hass: HomeAssistant, integration, panel) -> None:
     """Water heaters support on/off, turning on with the heater used last."""
-    entity_id = "water_heater.test_pool_spa"
+    entity_id = "water_heater.spa_heater"
     await hass.services.async_call(
         "water_heater", "turn_off", {"entity_id": entity_id}, blocking=True
     )

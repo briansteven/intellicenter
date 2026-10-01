@@ -1,26 +1,24 @@
 """Pentair IntelliCenter Integration."""
-import asyncio
-from functools import partial
-import logging
-from typing import Any, Optional
 
-from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
-from homeassistant.components.cover import DOMAIN as COVER_DOMAIN
-from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
-from homeassistant.components.number import DOMAIN as NUMBER_DOMAIN
-from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
-from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
-from homeassistant.components.water_heater import DOMAIN as WATER_HEATER_DOMAIN
+from __future__ import annotations
+
+import logging
+
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, EVENT_HOMEASSISTANT_STOP, UnitOfTemperature
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import CONF_HOST, EVENT_HOMEASSISTANT_STOP, Platform
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import config_validation as cv, dispatcher
-from homeassistant.helpers.entity import Entity
+from homeassistant.helpers import (
+    config_validation as cv,
+    device_registry as dr,
+    dispatcher,
+    entity_registry as er,
+)
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN
-from .issues import async_check_heater_assignments, async_clear_issues
+from .const import DOMAIN, SETUP_TIMEOUT, connection_signal, update_signal
+from .entity import get_device, system_device_info, system_id
+from .issues import HeaterAssignmentMonitor
 from .pyintellicenter import (
     ACT_ATTR,
     BODY_ATTR,
@@ -29,6 +27,7 @@ from .pyintellicenter import (
     CIRCGRP_TYPE,
     CIRCUIT_ATTR,
     CIRCUIT_TYPE,
+    EXTINSTR_TYPE,
     FEATR_ATTR,
     GPM_ATTR,
     HEATER_ATTR,
@@ -38,11 +37,14 @@ from .pyintellicenter import (
     LOTMP_ATTR,
     LSTTMP_ATTR,
     MODE_ATTR,
+    NORMAL_ATTR,
+    POSIT_ATTR,
     PUMP_TYPE,
     PWR_ATTR,
     RPM_ATTR,
     SCHED_TYPE,
     SENSE_TYPE,
+    SERVICE_ATTR,
     SNAME_ATTR,
     SOURCE_ATTR,
     STATUS_ATTR,
@@ -54,23 +56,89 @@ from .pyintellicenter import (
     ConnectionHandler,
     ModelController,
     PoolModel,
-    PoolObject,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
-# here is the list of platforms we support
 PLATFORMS = [
-    LIGHT_DOMAIN,
-    SENSOR_DOMAIN,
-    SWITCH_DOMAIN,
-    BINARY_SENSOR_DOMAIN,
-    WATER_HEATER_DOMAIN,
-    NUMBER_DOMAIN,
-    COVER_DOMAIN,
+    Platform.BINARY_SENSOR,
+    Platform.COVER,
+    Platform.LIGHT,
+    Platform.NUMBER,
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.WATER_HEATER,
 ]
+
+# the objects loaded from the IntelliCenter and the attributes followed for
+# each (an empty set: every attribute known for that type)
+ATTRIBUTES_MAP = {
+    BODY_TYPE: {
+        SNAME_ATTR,
+        HEATER_ATTR,
+        HTMODE_ATTR,
+        LOTMP_ATTR,
+        LSTTMP_ATTR,
+        STATUS_ATTR,
+        VOL_ATTR,
+    },
+    CIRCUIT_TYPE: {SNAME_ATTR, STATUS_ATTR, USE_ATTR, SUBTYP_ATTR, FEATR_ATTR},
+    CIRCGRP_TYPE: {CIRCUIT_ATTR},
+    CHEM_TYPE: set(),
+    EXTINSTR_TYPE: {SNAME_ATTR, STATUS_ATTR, NORMAL_ATTR, POSIT_ATTR, BODY_ATTR},
+    HEATER_TYPE: {SNAME_ATTR, BODY_ATTR, LISTORD_ATTR},
+    PUMP_TYPE: {SNAME_ATTR, STATUS_ATTR, PWR_ATTR, RPM_ATTR, GPM_ATTR},
+    SENSE_TYPE: {SNAME_ATTR, SOURCE_ATTR},
+    SCHED_TYPE: {SNAME_ATTR, ACT_ATTR, VACFLO_ATTR},
+    SYSTEM_TYPE: {MODE_ATTR, VACFLO_ATTR, SERVICE_ATTR},
+}
+
+type IntelliCenterConfigEntry = ConfigEntry[IntelliCenterHandler]
+
+# -------------------------------------------------------------------------------------
+
+
+class IntelliCenterHandler(ConnectionHandler):
+    """Keep a config entry connected to its IntelliCenter."""
+
+    def __init__(
+        self, hass: HomeAssistant, entry: ConfigEntry, controller: ModelController
+    ):
+        """Initialize."""
+        super().__init__(controller)
+        self._hass = hass
+        self._entry_id = entry.entry_id
+        self.monitor = HeaterAssignmentMonitor(hass, entry.entry_id, controller.model)
+        # the registry ID of the IntelliCenter's device
+        self.system_device_id: str | None = None
+
+    @callback
+    def reconnected(self, controller):
+        """Handle reconnection to the IntelliCenter."""
+        _LOGGER.info(f"reconnected to {controller.host}")
+        dispatcher.async_dispatcher_send(
+            self._hass, connection_signal(self._entry_id), True
+        )
+        self.monitor.async_check()
+
+    @callback
+    def disconnected(self, controller, exc):
+        """Handle the connection to the IntelliCenter being lost."""
+        dispatcher.async_dispatcher_send(
+            self._hass, connection_signal(self._entry_id), False
+        )
+
+    @callback
+    def updated(self, controller, updates: dict[str, dict[str, str]]):
+        """Handle updates from the IntelliCenter."""
+        _LOGGER.debug(f"received update for {len(updates)} pool objects")
+        dispatcher.async_dispatcher_send(
+            self._hass, update_signal(self._entry_id), updates
+        )
+        self.monitor.async_check(updates)
+
 
 # -------------------------------------------------------------------------------------
 
@@ -80,312 +148,179 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: IntelliCenterConfigEntry) -> bool:
     """Set up IntelliCenter integration from a config entry."""
 
-    attributes_map = {
-        BODY_TYPE: {
-            SNAME_ATTR,
-            HEATER_ATTR,
-            HTMODE_ATTR,
-            LOTMP_ATTR,
-            LSTTMP_ATTR,
-            STATUS_ATTR,
-            VOL_ATTR,
-        },
-        CIRCUIT_TYPE: {SNAME_ATTR, STATUS_ATTR, USE_ATTR, SUBTYP_ATTR, FEATR_ATTR},
-        CIRCGRP_TYPE: {CIRCUIT_ATTR},
-        CHEM_TYPE: {},
-        HEATER_TYPE: {SNAME_ATTR, BODY_ATTR, LISTORD_ATTR},
-        PUMP_TYPE: {SNAME_ATTR, STATUS_ATTR, PWR_ATTR, RPM_ATTR, GPM_ATTR},
-        SENSE_TYPE: {SNAME_ATTR, SOURCE_ATTR},
-        SCHED_TYPE: {SNAME_ATTR, ACT_ATTR, VACFLO_ATTR},
-        SYSTEM_TYPE: {MODE_ATTR, VACFLO_ATTR},
-    }
-    model = PoolModel(attributes_map)
+    host = entry.data[CONF_HOST]
+    controller = ModelController(host, PoolModel(ATTRIBUTES_MAP), loop=hass.loop)
+    handler = IntelliCenterHandler(hass, entry, controller)
 
-    controller = ModelController(entry.data[CONF_HOST], model, loop=hass.loop)
-
-    class Handler(ConnectionHandler):
-
-        UPDATE_SIGNAL = DOMAIN + "_UPDATE_" + entry.entry_id
-        CONNECTION_SIGNAL = DOMAIN + "_CONNECTION_" + entry.entry_id
-
-        # platforms are only set up once the system has been reached
-        platforms_set_up = False
-
-        def started(self, controller):
-
-            _LOGGER.info(f"connected to system: '{controller.systemInfo.propName}'")
-
-            for object in controller.model:
-                _LOGGER.debug(f"   loaded {object}")
-
-            async_check_heater_assignments(hass, entry.entry_id, controller.model)
-
-            async def setup_platforms():
-                """Set up platforms."""
-                await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-                self.platforms_set_up = True
-
-                # dispatcher.async_dispatcher_send(hass, self.CONNECTION_SIGNAL, True)
-
-            hass.async_create_task(setup_platforms())
-
-        @callback
-        def reconnected(self, controller):
-            """Handle reconnection from the Pentair system."""
-            _LOGGER.info(f"reconnected to system: '{controller.systemInfo.propName}'")
-            dispatcher.async_dispatcher_send(hass, self.CONNECTION_SIGNAL, True)
-
-        @callback
-        def disconnected(self, controller, exc):
-            """Handle the connection to the Pentair system being lost."""
-            # the system may drop the connection before it is even identified
-            name = (
-                controller.systemInfo.propName
-                if controller.systemInfo
-                else controller.host
-            )
-            _LOGGER.info(f"disconnected from system: '{name}'")
-            dispatcher.async_dispatcher_send(hass, self.CONNECTION_SIGNAL, False)
-
-        @callback
-        def updated(self, controller, updates: dict[str, PoolObject]):
-            """Handle updates from the Pentair system."""
-            _LOGGER.debug(f"received update for {len(updates)} pool objects")
-            dispatcher.async_dispatcher_send(hass, self.UPDATE_SIGNAL, updates)
-
-            # a heater was assigned to or removed from a body, or a body's
-            # heat source changed
-            if any(
-                HEATER_ATTR in changes or BODY_ATTR in changes
-                for changes in updates.values()
-            ):
-                async_check_heater_assignments(hass, entry.entry_id, controller.model)
-
+    # connect now, so that a system that can't be reached shows as such (and
+    # setup is retried) instead of a setup that succeeds without any entity
     try:
+        await handler.connect(SETUP_TIMEOUT)
+    except Exception as err:  # noqa: BLE001 - any failure: try again later
+        handler.monitor.async_stop(clear_issues=False)
+        raise ConfigEntryNotReady(
+            f"cannot connect to the IntelliCenter at {host}: {err!r}"
+        ) from err
 
-        handler = Handler(controller)
+    _LOGGER.info(
+        f"connected to '{controller.systemInfo.propName}' at {host}"
+        f" ({controller.model.numObjects} objects,"
+        f" firmware {controller.systemInfo.swVersion})"
+    )
+    for obj in controller.model:
+        _LOGGER.debug(f"   loaded {obj}")
 
-        await handler.start()
+    entry.runtime_data = handler
 
-        hass.data.setdefault(DOMAIN, {})
-
-        hass.data[DOMAIN][entry.entry_id] = handler
-
-        # subscribe to Home Assistant STOP event to do some cleanup
-        # (and unsubscribe if the entry is unloaded first, e.g. on a reload)
-
-        async def on_hass_stop(event):
-            """Stop push updates when hass stops."""
-            handler.stop()
-
-        entry.async_on_unload(
-            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, on_hass_stop)
-        )
-
-        return True
-    except ConnectionRefusedError as err:
-        raise ConfigEntryNotReady from err
-
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload IntelliCenter config entry."""
-
-    handler = hass.data[DOMAIN].get(entry.entry_id)
-
-    # Unload entities for this entry/device, if they were ever set up
-    # (they are not until the system has been reached)
-    unload_ok = True
-    if handler is None or handler.platforms_set_up:
-        unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-
-    if not unload_ok:
-        return False
-
-    # Cleanup
-    hass.data[DOMAIN].pop(entry.entry_id, None)
-    if handler:
-        async_clear_issues(hass, entry.entry_id, handler.controller.model)
-
-    _LOGGER.info(f"unloading integration {entry.entry_id}")
-    if handler:
+    @callback
+    def on_hass_stop(event: Event) -> None:
+        """Disconnect when Home Assistant stops."""
         handler.stop()
 
-    # if it was the last instance of this integration, clear up the DOMAIN entry
-    if not hass.data[DOMAIN]:
-        del hass.data[DOMAIN]
+    entry.async_on_unload(
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, on_hass_stop)
+    )
 
+    _async_migrate_registry(hass, entry, controller.model)
+
+    device_registry = dr.async_get(hass)
+    handler.system_device_id = device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id, **system_device_info(entry, controller)
+    ).id
+    known_devices = {
+        device.id
+        for device in dr.async_entries_for_config_entry(
+            device_registry, entry.entry_id
+        )
+    }
+
+    try:
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    except BaseException:
+        handler.monitor.async_stop(clear_issues=False)
+        handler.stop()
+        raise
+
+    _async_place_new_devices(hass, entry, known_devices)
+
+    handler.monitor.async_start()
+
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: IntelliCenterConfigEntry) -> bool:
+    """Unload IntelliCenter config entry."""
+
+    if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        return False
+
+    handler = entry.runtime_data
+    handler.monitor.async_stop()
+    handler.stop()
+    _LOGGER.info(f"disconnected from {handler.controller.host}")
+
+    return True
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: IntelliCenterConfigEntry, device: dr.DeviceEntry
+) -> bool:
+    """Allow removing the device of equipment the IntelliCenter no longer has."""
+    model = entry.runtime_data.controller.model
+    prefix = f"{system_id(entry)}_"
+    for domain, identifier in device.identifiers:
+        if domain != DOMAIN:
+            continue
+        if not identifier.startswith(prefix):
+            # the IntelliCenter itself
+            return False
+        if model[identifier[len(prefix):]] is not None:
+            return False
     return True
 
 
 # -------------------------------------------------------------------------------------
 
 
-class PoolEntity(Entity):
-    """Representation of an Pool entity linked to an pool object."""
+@callback
+def _async_migrate_registry(
+    hass: HomeAssistant, entry: ConfigEntry, model: PoolModel
+) -> None:
+    """Move entities and the IntelliCenter's device to their current IDs.
 
-    def __init__(
-        self,
-        entry: ConfigEntry,
-        controller: ModelController,
-        poolObject: PoolObject,
-        attribute_key=STATUS_ATTR,
-        name=None,
-        enabled_by_default=True,
-        extraStateAttributes=None,
-        icon: str = None,
-        unit_of_measurement: str = None,
+    Before 3.0 (and in dwradcliffe's version) unique IDs started with the config
+    entry ID, which changes every time the system is added to Home Assistant;
+    joyfulhouse's version adds an underscore after it. They now start with the
+    ID the IntelliCenter gives (like dwradcliffe's PR #46), so removing and
+    adding the system again restores entity customizations. Entities keep their
+    entity IDs, history and settings.
+
+    This runs at every setup: it is cheap, does nothing once done, and also
+    catches entities left by another version installed in between.
+    """
+    new_prefix = system_id(entry)
+    old_prefix = entry.entry_id
+
+    def known(rest: str) -> bool:
+        """Return True if rest starts with the name of a known object."""
+        return any(rest.startswith(objnam) for objnam in model.objects)
+
+    entity_registry = er.async_get(hass)
+    for registry_entry in er.async_entries_for_config_entry(
+        entity_registry, entry.entry_id
     ):
-        """Initialize a Pool entity."""
-        self._entry_id = entry.entry_id
-        self._controller = controller
-        self._poolObject = poolObject
-        self._attr_available = True
-        self._extra_state_attributes = extraStateAttributes or set()
-        self._attr_name = name
-        self._attribute_key = attribute_key
-        self._attr_entity_registry_enabled_default = enabled_by_default
-        self._attr_native_unit_of_measurement = unit_of_measurement
-        self._attr_icon = icon
-        self._attr_should_poll = False
-
-        _LOGGER.debug(f"mapping {poolObject}")
-
-    async def async_added_to_hass(self):
-        """Entity is added to Home Assistant."""
-        self.async_on_remove(
-            dispatcher.async_dispatcher_connect(
-                self.hass, DOMAIN + "_UPDATE_" + self._entry_id, self._update_callback
+        unique_id = registry_entry.unique_id
+        if not unique_id.startswith(old_prefix):
+            continue
+        rest = unique_id[len(old_prefix):]
+        # some objects' names start with an underscore ("_A135"): an underscore
+        # is joyfulhouse's separator only if the object name follows it
+        if rest.startswith("_") and not known(rest) and known(rest[1:]):
+            rest = rest[1:]
+        new_unique_id = new_prefix + rest
+        if new_unique_id == unique_id:
+            continue
+        if entity_registry.async_get_entity_id(
+            registry_entry.domain, registry_entry.platform, new_unique_id
+        ):
+            _LOGGER.warning(
+                f"not migrating {registry_entry.entity_id}: another entity already"
+                f" has its new unique ID {new_unique_id}"
             )
+            continue
+        _LOGGER.info(f"migrating {registry_entry.entity_id} to unique ID {new_unique_id}")
+        entity_registry.async_update_entity(
+            registry_entry.entity_id, new_unique_id=new_unique_id
         )
 
-        self.async_on_remove(
-            dispatcher.async_dispatcher_connect(
-                self.hass,
-                DOMAIN + "_CONNECTION_" + self._entry_id,
-                self._connection_callback,
-            )
-        )
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Entity is removed from Home Assistant."""
-        _LOGGER.debug(f"removing entity: {self.unique_id}")
-
-    @property
-    def name(self):
-        """Return the name of the entity."""
-
-        if self._attr_name is None:
-            # default is to return the name of the underlying pool object
-            return self._poolObject.sname
-        elif self._attr_name.startswith("+"):
-            # name is a suffix
-            return self._poolObject.sname + self._attr_name[1:]
-        else:
-            return self._attr_name
-
-    @property
-    def unique_id(self):
-        """Return a unique ID."""
-        my_id = self._entry_id + self._poolObject.objnam
-        if self._attribute_key != STATUS_ATTR:
-            my_id += self._attribute_key
-        return my_id
-
-    @property
-    def device_info(self):
-        """Return the device info."""
-
-        systemInfo = self._controller.systemInfo
-
-        return {
-            "identifiers": {(DOMAIN, self._entry_id)},
-            "manufacturer": "Pentair",
-            "model": "IntelliCenter",
-            "name": systemInfo.propName,
-            "sw_version": systemInfo.swVersion,
-        }
-
-    @property
-    def extra_state_attributes(self) -> Optional[dict[str, Any]]:
-        """Return the state attributes of the entity."""
-
-        object = self._poolObject
-
-        objectType = object.objtype
-        if object.subtype:
-            objectType += f"/{object.subtype}"
-
-        attributes = {"OBJNAM": object.objnam, "OBJTYPE": objectType}
-
-        if object.status:
-            attributes["Status"] = object.status
-
-        for attribute in self._extra_state_attributes:
-            if object[attribute]:
-                attributes[attribute] = object[attribute]
-
-        return attributes
-
-    def requestChanges(self, changes: dict) -> None:
-        """Request changes as key:value pairs to the associated Pool object.
-
-        We don't wait for the response: whatever changes were requested will be
-        reflected as an update if successful.
-
-        The connection to the system belongs to the event loop and asyncio
-        transports are not thread safe, so a request made from any other thread
-        is handed over to the loop instead of being written from that thread.
-        """
-        try:
-            running_loop = asyncio.get_running_loop()
-        except RuntimeError:  # not in an event loop at all
-            running_loop = None
-
-        if self.hass is None or running_loop is self.hass.loop:
-            self._controller.requestChanges(
-                self._poolObject.objnam, changes, waitForResponse=False
-            )
-        else:
-            self.hass.loop.call_soon_threadsafe(
-                partial(
-                    self._controller.requestChanges,
-                    self._poolObject.objnam,
-                    changes,
-                    waitForResponse=False,
-                )
+    if new_prefix != old_prefix:
+        device_registry = dr.async_get(hass)
+        device = get_device(device_registry, (DOMAIN, old_prefix), entry.entry_id)
+        if device and not get_device(
+            device_registry, (DOMAIN, new_prefix), entry.entry_id
+        ):
+            device_registry.async_update_device(
+                device.id, new_identifiers={(DOMAIN, new_prefix)}
             )
 
-    def isUpdated(self, updates: dict[str, dict[str, str]]) -> bool:
-        """Return true if the entity is updated by the updates from Intellicenter."""
 
-        return self._attribute_key in updates.get(self._poolObject.objnam, {})
+@callback
+def _async_place_new_devices(
+    hass: HomeAssistant, entry: ConfigEntry, known_devices: set[str]
+) -> None:
+    """Put devices created by this setup in the IntelliCenter's area.
 
-    @callback
-    def _update_callback(self, updates: dict[str, dict[str, str]]):
-        """Update the entity if its underlying pool object has changed."""
-
-        if self.isUpdated(updates):
-            self._attr_available = True
-            _LOGGER.debug(f"updating {self} from {updates}")
-            self.async_write_ha_state()
-
-    @callback
-    def _connection_callback(self, is_connected):
-        """Mark the entity as unavailable after being disconnected from the server."""
-        if is_connected:
-            self._poolObject = self._controller.model[self._poolObject.objnam]
-            if not self._poolObject:
-                # this is for the rare case where the object the entity is mapped to
-                # had been removed from the Pentair system while we were disconnected
-                return
-        self._attr_available = is_connected
-        self.async_write_ha_state()
-
-    def pentairTemperatureSettings(self):
-        """Return the temperature units from the Pentair system."""
-        return (
-            UnitOfTemperature.CELSIUS if self._controller.systemInfo.usesMetric else UnitOfTemperature.FAHRENHEIT
-        )
+    Bodies, pumps, heaters and chemistry controllers became devices of their
+    own in 3.0: their entities used to belong to the IntelliCenter's device, so
+    an area given to it covered them too.
+    """
+    device_registry = dr.async_get(hass)
+    system = get_device(device_registry, (DOMAIN, system_id(entry)), entry.entry_id)
+    if system is None or system.area_id is None:
+        return
+    for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
+        if device.id not in known_devices and device.area_id is None:
+            device_registry.async_update_device(device.id, area_id=system.area_id)

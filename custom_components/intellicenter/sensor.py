@@ -9,7 +9,12 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfElectricPotential, UnitOfPower
+from homeassistant.const import (
+    REVOLUTIONS_PER_MINUTE,
+    UnitOfElectricPotential,
+    UnitOfPower,
+    UnitOfVolumeFlowRate,
+)
 from homeassistant.core import HomeAssistant
 
 try:
@@ -21,8 +26,7 @@ except ImportError:  # older Home Assistant releases without UnitOfRatio
         CONCENTRATION_PARTS_PER_MILLION as PARTS_PER_MILLION,
     )
 
-from . import PoolEntity
-from .const import CONST_GPM, CONST_RPM, DOMAIN
+from .entity import PoolEntity
 from .pyintellicenter import (
     BODY_TYPE,
     CHEM_TYPE,
@@ -54,152 +58,97 @@ async def async_setup_entry(
 ):
     """Load pool sensors based on a config entry."""
 
-    controller: ModelController = hass.data[DOMAIN][entry.entry_id].controller
+    controller: ModelController = entry.runtime_data.controller
 
     sensors = []
+
+    def add(obj, cls=None, **kwargs):
+        sensors.append((cls or PoolSensor)(entry, controller, obj, **kwargs))
 
     obj: PoolObject
     for obj in controller.model.objectList:
         if obj.objtype == SENSE_TYPE:
-            sensors.append(
-                PoolSensor(
-                    entry,
-                    controller,
-                    obj,
-                    device_class=SensorDeviceClass.TEMPERATURE,
-                    attribute_key=SOURCE_ATTR,
-                )
-            )
+            add(obj, device_class=SensorDeviceClass.TEMPERATURE, attribute_key=SOURCE_ATTR)
         elif obj.objtype == PUMP_TYPE:
             if obj[PWR_ATTR]:
-                sensors.append(
-                    PoolSensor(
-                        entry,
-                        controller,
-                        obj,
-                        device_class=SensorDeviceClass.POWER,
-                        unit_of_measurement=UnitOfPower.WATT,
-                        attribute_key=PWR_ATTR,
-                        name="+ power",
-                        rounding_factor=25,
-                    )
+                add(
+                    obj,
+                    device_class=SensorDeviceClass.POWER,
+                    unit_of_measurement=UnitOfPower.WATT,
+                    attribute_key=PWR_ATTR,
+                    name="Power",
+                    rounding_factor=25,
                 )
             if obj[RPM_ATTR]:
-                sensors.append(
-                    PoolSensor(
-                        entry,
-                        controller,
-                        obj,
-                        device_class=None,
-                        unit_of_measurement=CONST_RPM,
-                        attribute_key=RPM_ATTR,
-                        name="+ rpm",
-                    )
+                add(
+                    obj,
+                    unit_of_measurement=REVOLUTIONS_PER_MINUTE,
+                    attribute_key=RPM_ATTR,
+                    name="Speed",
+                    icon="mdi:speedometer",
                 )
             if obj[GPM_ATTR]:
-                sensors.append(
-                    PoolSensor(
-                        entry,
-                        controller,
-                        obj,
-                        device_class=None,
-                        unit_of_measurement=CONST_GPM,
-                        attribute_key=GPM_ATTR,
-                        name="+ gpm",
-                    )
+                add(
+                    obj,
+                    device_class=SensorDeviceClass.VOLUME_FLOW_RATE,
+                    unit_of_measurement=UnitOfVolumeFlowRate.GALLONS_PER_MINUTE,
+                    attribute_key=GPM_ATTR,
+                    name="Flow",
                 )
         elif obj.objtype == BODY_TYPE:
-            sensors.append(
-                PoolSensor(
-                    entry,
-                    controller,
-                    obj,
-                    device_class=SensorDeviceClass.TEMPERATURE,
-                    attribute_key=LSTTMP_ATTR,
-                    name="+ last temp",
-                )
+            add(
+                obj,
+                device_class=SensorDeviceClass.TEMPERATURE,
+                attribute_key=LSTTMP_ATTR,
+                name="Temperature",
             )
-            sensors.append(
-                PoolSensor(
-                    entry,
-                    controller,
-                    obj,
-                    device_class=SensorDeviceClass.TEMPERATURE,
-                    attribute_key=LOTMP_ATTR,
-                    name="+ desired temp",
-                )
+            add(
+                obj,
+                device_class=SensorDeviceClass.TEMPERATURE,
+                attribute_key=LOTMP_ATTR,
+                name="Target temperature",
             )
         elif obj.objtype == CHEM_TYPE:
             if obj.subtype == "ICHEM":
                 if PHVAL_ATTR in obj.attributes:
-                    sensors.append(
-                        PoolSensor(
-                            entry,
-                            controller,
-                            obj,
-                            device_class=None,
-                            unit_of_measurement="pH",
-                            attribute_key=PHVAL_ATTR,
-                            name="+ (pH)",
-                        )
+                    add(
+                        obj,
+                        unit_of_measurement="pH",
+                        attribute_key=PHVAL_ATTR,
+                        name="pH",
+                        icon="mdi:ph",
                     )
                 if ORPVAL_ATTR in obj.attributes:
-                    sensors.append(
-                        PoolSensor(
-                            entry,
-                            controller,
-                            obj,
-                            device_class=None,
-                            unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,
-                            attribute_key=ORPVAL_ATTR,
-                            name="+ (ORP)",
-                        )
+                    add(
+                        obj,
+                        unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,
+                        attribute_key=ORPVAL_ATTR,
+                        name="ORP",
                     )
                 if QUALTY_ATTR in obj.attributes:
-                    sensors.append(
-                        PoolSensor(
-                            entry,
-                            controller,
-                            obj,
-                            device_class=None,
-                            attribute_key=QUALTY_ATTR,
-                            name="+ (Water Quality)",
-                        )
-                    )
+                    add(obj, attribute_key=QUALTY_ATTR, name="Water quality")
                 if PHTNK_ATTR in obj.attributes:
-                    sensors.append(
-                        PoolSensor(
-                            entry,
-                            controller,
-                            obj,
-                            device_class=None,
-                            attribute_key=PHTNK_ATTR,
-                            name="+ (Ph Tank Level)",
-                        )
+                    add(
+                        obj,
+                        TankLevelSensor,
+                        attribute_key=PHTNK_ATTR,
+                        name="pH tank level",
                     )
                 if ORPTNK_ATTR in obj.attributes:
-                    sensors.append(
-                        PoolSensor(
-                            entry,
-                            controller,
-                            obj,
-                            device_class=None,
-                            attribute_key=ORPTNK_ATTR,
-                            name="+ (ORP Tank Level)",
-                        )
+                    add(
+                        obj,
+                        TankLevelSensor,
+                        attribute_key=ORPTNK_ATTR,
+                        name="ORP tank level",
                     )
             elif obj.subtype == "ICHLOR":
                 if SALT_ATTR in obj.attributes:
-                    sensors.append(
-                        PoolSensor(
-                            entry,
-                            controller,
-                            obj,
-                            device_class=None,
-                            unit_of_measurement=PARTS_PER_MILLION,
-                            attribute_key=SALT_ATTR,
-                            name="+ (Salt)",
-                        )
+                    add(
+                        obj,
+                        unit_of_measurement=PARTS_PER_MILLION,
+                        attribute_key=SALT_ATTR,
+                        name="Salt",
+                        icon="mdi:shaker-outline",
                     )
     async_add_entities(sensors)
 
@@ -210,12 +159,14 @@ async def async_setup_entry(
 class PoolSensor(PoolEntity, SensorEntity):
     """Representation of an Pentair sensor."""
 
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
     def __init__(
         self,
         entry: ConfigEntry,
         controller: ModelController,
         poolObject: PoolObject,
-        device_class: Optional[SensorDeviceClass],
+        device_class: Optional[SensorDeviceClass] = None,
         rounding_factor: int = 0,
         **kwargs,
     ):
@@ -223,19 +174,23 @@ class PoolSensor(PoolEntity, SensorEntity):
         super().__init__(entry, controller, poolObject, **kwargs)
         self._attr_device_class = device_class
         self._rounding_factor = rounding_factor
-        self._attr_state_class = SensorStateClass.MEASUREMENT
+
+    def _number(self):
+        """Return the attribute's value as a number, None if it has none."""
+        value = self._poolObject[self._attribute_key]
+        if value is None or value == "":
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
 
     @property
     def native_value(self):
         """Return the value of the sensor."""
 
-        value = self._poolObject[self._attribute_key]
-        if value is None or value == "":
-            return None
-
-        try:
-            numeric = float(value)
-        except (TypeError, ValueError):
+        numeric = self._number()
+        if numeric is None:
             return None
 
         # some sensors, like variable speed pumps, can vary constantly
@@ -253,3 +208,23 @@ class PoolSensor(PoolEntity, SensorEntity):
         if self._attr_device_class == SensorDeviceClass.TEMPERATURE:
             return self.pentairTemperatureSettings()
         return self._attr_native_unit_of_measurement
+
+
+class TankLevelSensor(PoolSensor):
+    """The level of an IntelliChem tank, 0 (empty) to 6 (full).
+
+    The IntelliCenter reports levels 1 to 7 for what the IntelliChem shows as
+    0 to 6 (found by the joyfulhouse and nodejs-poolController projects).
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Initialize."""
+        super().__init__(*args, icon="mdi:storage-tank-outline", **kwargs)
+
+    @property
+    def native_value(self):
+        """Return the level."""
+        numeric = self._number()
+        if numeric is None:
+            return None
+        return max(int(numeric) - 1, 0)

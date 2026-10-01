@@ -33,6 +33,8 @@ LOTMP_ATTR = "LOTMP"
 LSTTMP_ATTR = "LSTTMP"
 MODE_ATTR = "MODE"
 NORMAL_ATTR = "NORMAL"
+POSIT_ATTR = "POSIT"
+SERVICE_ATTR = "SERVICE"
 OBJTYP_ATTR = "OBJTYP"
 ORPTNK_ATTR = "ORPTNK"
 ORPVAL_ATTR = "ORPVAL"
@@ -193,10 +195,11 @@ EXTINSTR_ATTRIBUTES = {
     LISTORD_ATTR,  # (int) used to order in UI
     NORMAL_ATTR,  # (ON/OFF) 'ON' for Cover State Normally On
     PARENT_ATTR,  # (objnam)
+    POSIT_ATTR,  # (ON/OFF) cover position, compared with NORMAL (newer firmware)
     READY_ATTR,  # (ON/OFF) ???
     SNAME_ATTR,  # (str) friendly name
     STATIC_ATTR,  # (ON/OFF) 'OFF'
-    STATUS_ATTR,  # (ON/OFF) 'ON' if cover enabled
+    STATUS_ATTR,  # (ON/OFF) 'ON' if the cover is enabled (not its position)
     SUBTYP_ATTR,  # only seen 'COVER'
 }
 
@@ -211,7 +214,7 @@ FEATR_ATTRIBUTES = {
 }
 
 HEATER_ATTRIBUTES = {
-    BODY_ATTR,  # the objnam of the body the pump serves or a list (separated by a space)
+    BODY_ATTR,  # the bodies the heater is assigned to (objnams separated by a space)
     "BOOST",  # (int) ??
     COMUART_ATTR,  # X25 related?
     "COOL",  # (ON/OFF)
@@ -221,7 +224,7 @@ HEATER_ATTRIBUTES = {
     LISTORD_ATTR,  # (int) used to order in UI
     PARENT_ATTR,  # (objnam) parent (module) for this heater
     READY_ATTR,  # (ON/OFF)
-    SHARE_ATTR,  # 'SHARE' when the heater also serves the shared body
+    SHARE_ATTR,  # usually undefined (the system echoes 'SHARE'); not a heater-sharing flag
     SHOMNU_ATTR,  # (str) permissions
     SNAME_ATTR,  # (str) friendly name
     "START",  # (int) ??
@@ -390,7 +393,7 @@ SYSTEM_ATTRIBUTES = [
     "PHONE",  # primary phone number for the owner
     "PHONE2",  # secondary phone number for the owner
     PROPNAME_ATTR,  # name of the property
-    "SERVICE",  # 'AUTO' for automatic
+    SERVICE_ATTR,  # 'AUTO', 'MANUAL' (service mode) or 'TIMOUT' (timed service)
     SNAME_ATTR,  # a crazy looking string I assume to be unique to this system
     "START",  # almost looks like a date but no idea
     "STATE",  # Pool State

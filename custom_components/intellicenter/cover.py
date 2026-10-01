@@ -1,17 +1,16 @@
 """Pentair Intellicenter covers."""
 
 import logging
-from typing import Any
 
 from homeassistant.components.cover import CoverEntity, CoverEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from . import PoolEntity
-from .const import DOMAIN
+from .entity import PoolEntity
 from .pyintellicenter import (
     EXTINSTR_TYPE,
     NORMAL_ATTR,
+    POSIT_ATTR,
     STATUS_ATTR,
     ModelController,
     PoolObject,
@@ -19,20 +18,32 @@ from .pyintellicenter import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# values of POSIT and NORMAL
+ON, OFF = "ON", "OFF"
+
 # -------------------------------------------------------------------------------------
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities
 ):
-    """Load pool covers based on a config entry."""
-    controller: ModelController = hass.data[DOMAIN][entry.entry_id].controller
+    """Load pool covers based on a config entry.
+
+    The IntelliCenter defines cover objects whether or not a cover is installed.
+    Only those that report a position (POSIT) are covers Home Assistant can
+    show: older firmware (IC 1.064) reports none at all.
+    """
+    controller: ModelController = entry.runtime_data.controller
 
     covers = []
 
     obj: PoolObject
     for obj in controller.model.objectList:
-        if obj.objtype == EXTINSTR_TYPE and obj.subtype == "COVER":
+        if (
+            obj.objtype == EXTINSTR_TYPE
+            and obj.subtype == "COVER"
+            and obj[POSIT_ATTR] in (ON, OFF)
+        ):
             covers.append(PoolCover(entry, controller, obj))
 
     async_add_entities(covers)
@@ -41,7 +52,18 @@ async def async_setup_entry(
 
 
 class PoolCover(PoolEntity, CoverEntity):
-    """Representation of a Pentair pool cover."""
+    """A pool or spa cover, as the IntelliCenter reports it.
+
+    POSIT is the cover's position, combined with NORMAL (the position the
+    cover is in when POSIT is ON). STATUS only says whether the cover is
+    enabled in the IntelliCenter's settings, so it is not its position.
+
+    Covers are read-only here: moving a cover without seeing the water is a
+    safety risk, and how the IntelliCenter takes a position change isn't
+    established.
+    """
+
+    _attr_supported_features = CoverEntityFeature(0)
 
     def __init__(
         self,
@@ -54,36 +76,20 @@ class PoolCover(PoolEntity, CoverEntity):
             entry,
             controller,
             poolObject,
-            extraStateAttributes=[NORMAL_ATTR],
+            extraStateAttributes=[NORMAL_ATTR, POSIT_ATTR],
             icon="mdi:arrow-expand-horizontal",
-        )
-        self._attr_supported_features = (
-            CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE
         )
 
     @property
-    def is_closed(self) -> bool:
-        """Return true if cover is closed."""
-        # The cover is closed if:
-        # - STATUS is ON and NORMAL is ON (cover is normally closed)
-        # - STATUS is OFF and NORMAL is OFF (cover is normally open)
-        status = self._poolObject[STATUS_ATTR] == "ON"
-        normal = self._poolObject[NORMAL_ATTR] == "ON"
-        return status == normal
-
-    async def async_open_cover(self, **kwargs: Any) -> None:
-        """Open the cover."""
-        # To open the cover, we need to set STATUS opposite of NORMAL
-        normal = self._poolObject[NORMAL_ATTR] == "ON"
-        self.requestChanges({STATUS_ATTR: "OFF" if normal else "ON"})
-
-    async def async_close_cover(self, **kwargs: Any) -> None:
-        """Close the cover."""
-        # To close the cover, we need to set STATUS same as NORMAL
-        normal = self._poolObject[NORMAL_ATTR] == "ON"
-        self.requestChanges({STATUS_ATTR: "ON" if normal else "OFF"})
+    def is_closed(self) -> bool | None:
+        """Return true if the cover is closed, None if unknown."""
+        position, normal = self._poolObject[POSIT_ATTR], self._poolObject[NORMAL_ATTR]
+        if position not in (ON, OFF) or normal not in (ON, OFF):
+            return None
+        # NORMAL ON: closed when POSIT is ON; NORMAL OFF: closed when POSIT is OFF
+        return position == normal
 
     def isUpdated(self, updates: dict[str, dict[str, str]]) -> bool:
         """Return true if the entity is updated by the updates from Intellicenter."""
         myUpdates = updates.get(self._poolObject.objnam, {})
-        return myUpdates and {STATUS_ATTR, NORMAL_ATTR} & myUpdates.keys()
+        return bool({STATUS_ATTR, NORMAL_ATTR, POSIT_ATTR} & myUpdates.keys())

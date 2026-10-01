@@ -5,10 +5,10 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 
-from . import PoolEntity
-from .const import DOMAIN
+from .entity import PoolEntity
 from .pyintellicenter import (
     BODY_TYPE,
     CHEM_TYPE,
@@ -32,7 +32,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities
 ):
     """Load a Pentair switch based on a config entry."""
-    controller: ModelController = hass.data[DOMAIN][entry.entry_id].controller
+    controller: ModelController = entry.runtime_data.controller
 
     switches = []
 
@@ -51,7 +51,7 @@ async def async_setup_entry(
                     controller,
                     obj,
                     attribute_key=SUPER_ATTR,
-                    name="+ Superchlorinate",
+                    name="Superchlorinate",
                     icon="mdi:alpha-s-box-outline",
                 )
             )
@@ -69,17 +69,7 @@ async def async_setup_entry(
             switches.append(
                 PoolCircuit(entry, controller, obj, icon="mdi:alpha-g-box-outline"))
         elif obj.objtype == SYSTEM_TYPE:
-            switches.append(
-                PoolCircuit(
-                    entry,
-                    controller,
-                    obj,
-                    VACFLO_ATTR,
-                    name="Vacation mode",
-                    icon="mdi:palm-tree",
-                    enabled_by_default=False,
-                )
-            )
+            switches.append(VacationMode(entry, controller, obj))
 
     async_add_entities(switches)
 
@@ -112,6 +102,28 @@ class PoolBody(PoolCircuit):
 
     def __init__(self, entry: ConfigEntry, controller, poolObject):
         """Initialize a Pool body from the underlying circuit."""
-        super().__init__(entry, controller, poolObject)
-        self._extra_state_attributes = [VOL_ATTR, HEATER_ATTR, HTMODE_ATTR]
-        self._attr_icon = "mdi:pool"
+        super().__init__(
+            entry,
+            controller,
+            poolObject,
+            extraStateAttributes=[VOL_ATTR, HEATER_ATTR, HTMODE_ATTR],
+            icon="mdi:hot-tub" if poolObject.subtype == "SPA" else "mdi:pool",
+        )
+
+
+class VacationMode(PoolCircuit):
+    """The IntelliCenter's vacation mode."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, entry: ConfigEntry, controller, poolObject):
+        """Initialize."""
+        super().__init__(
+            entry,
+            controller,
+            poolObject,
+            attribute_key=VACFLO_ATTR,
+            name="Vacation mode",
+            icon="mdi:palm-tree",
+            enabled_by_default=False,
+        )

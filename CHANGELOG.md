@@ -1,9 +1,114 @@
 # Changelog
 
-Changes in this fork (briansteven/intellicenter) since dwradcliffe/intellicenter
-v2.0.0. Upgrading from any of these versions is a drop-in replacement: no
-configuration changes, and entities keep their IDs. The one deliberate exception
-is the water heater state in 2.2.0.
+Changes in briansteven/intellicenter since dwradcliffe/intellicenter v2.0.0.
+Versions 2.x are drop-in replacements for dwradcliffe's (with the water heater
+state change in 2.2.0); 3.0.0 makes this an independent version.
+
+## 3.0.0
+
+This version no longer aims to stay interchangeable with dwradcliffe's: it
+adopts Home Assistant's current conventions for devices and names, and fixes
+values that were off. Updating keeps every entity ID, its history, area and
+customizations; read "What changes when you update" below.
+
+### What changes when you update
+
+- **Bodies, pumps, heaters and chemistry controllers are devices.** Each body of
+  water (pool, spa), pump, heater, IntelliChlor and IntelliChem is now a device
+  connected through the IntelliCenter's device, with its entities. Everything
+  else (circuits, lights, sensors, schedules...) stays on the IntelliCenter's
+  device. The new devices start in the IntelliCenter's area, so entities stay in
+  the area they were in.
+- **Entity names follow Home Assistant's conventions**: an entity's name is its
+  device's name plus what it is. Entity IDs don't change; the names shown where
+  you haven't renamed an entity do, for example:
+
+  | Entity | Before | After |
+  | --- | --- | --- |
+  | pool temperature | Pool last temp | Pool Temperature |
+  | pool target temperature | Pool desired temp | Pool Target temperature |
+  | pool water heater | Pool | Pool Heater |
+  | pump speed / flow | VSF rpm / VSF gpm | VSF Speed / VSF Flow |
+  | IntelliChem pH | IntelliChem 1 (pH) | IntelliChem 1 pH |
+  | IntelliChlor output | IntelliChlor 1 Output % (Pool) | IntelliChlor 1 Pool output |
+  | a circuit, light or sensor | Waterfall | *IntelliCenter's name* Waterfall |
+
+  Dashboard cards that set their own names are unaffected. New entities get IDs
+  from these names (for example `water_heater.pool_heater` on a new
+  installation).
+- **IntelliChem tank levels are 1 lower.** The IntelliCenter reports tank levels
+  1 to 7 for what the IntelliChem shows as 0 to 6 (found by joyfulhouse's
+  version and nodejs-poolController); the sensors now show 0 to 6. **Check
+  automations that compare a tank level with a number**: to alert at the same
+  point as before, lower the number by 1.
+- **Pump flow is a flow rate** (`gal/min`, converted to L/min where Home
+  Assistant uses metric units) instead of a plain number in `gpm`. Home
+  Assistant may ask, in Developer tools > Statistics, what to do about the unit
+  of the existing statistics: the values are the same, so keep them.
+- **Unique IDs come from the IntelliCenter** instead of the config entry, like
+  dwradcliffe/intellicenter#46: after removing and adding the system again, Home
+  Assistant restores entity customizations (within 30 days). Existing entities
+  are migrated in place at startup, from this version's 2.x, dwradcliffe's,
+  jlvaillant's and joyfulhouse's formats. **Going back to a version before 3.0
+  creates a second set of entities: restore a backup instead.**
+- Freeze protection is shown as "Cold"/"Normal" (a cold sensor), the heater's
+  sensor as "Running"/"Not running", and settings (vacation mode, chlorinator
+  output) are listed as configuration on their device.
+- Requires Home Assistant 2025.1 or later.
+
+### Setup and connection
+
+- **Setup waits for the IntelliCenter.** It used to succeed at once and create
+  the entities whenever the IntelliCenter answered, so an unreachable system
+  looked set up but had no entities. Now an IntelliCenter that doesn't answer
+  within 30 seconds puts the integration in "retrying setup" with the reason,
+  and Home Assistant tries again later.
+- **Reconfigure** changes the IntelliCenter's address without removing it (it
+  checks that the same IntelliCenter answers there). Adding an already
+  configured IntelliCenter at a new address also updates it.
+- Adding the integration no longer hangs on an IntelliCenter that accepts the
+  connection but doesn't answer: it reports "Failed to connect" after 15
+  seconds.
+- Debug logging works for the whole integration (the connection code forced its
+  log level to INFO), connection problems are logged once rather than at every
+  retry, and losing the connection is a warning.
+
+### Heating
+
+- **A body selecting a heater that isn't assigned to it.** IntelliCenters
+  differ: some don't heat a body with a heater that isn't assigned to it (the
+  pump runs and the water stays cold), others heat it anyway (reported to
+  joyfulhouse's version). So:
+  - such a body gets a water heater with that heater as an option, and
+  - the repair issue (which 2.2.1 raised on the settings alone) is raised only
+    when it matters: the body is on, below its target temperature, and hasn't
+    been heated for 10 minutes. It clears once the body is heated or the heater
+    is assigned to it.
+- A water heater shows a heater selected at the IntelliCenter after Home
+  Assistant started, even if it wasn't one of its options.
+
+### New
+
+- **Service mode**: a sensor that is on while the IntelliCenter is in service or
+  timeout mode (when it suspends its normal operation, such as schedules).
+- **Pool and spa covers** now appear, for IntelliCenters that report the cover's
+  position (they never did: cover objects weren't loaded). They are read-only.
+  Older firmware such as 1.064 doesn't report a position, so they don't appear.
+- **"SAm" light show** for color lights.
+- **Diagnostics** include the integration version, firmware, connection state
+  and time since the IntelliCenter last answered; addresses and identifiers are
+  removed.
+- Devices of equipment the IntelliCenter no longer has can be deleted.
+- A weekly job reports what changed in the other IntelliCenter versions and
+  runs the tests against the latest Home Assistant.
+
+### Fixed
+
+- A chlorinator serving more than two bodies no longer creates two output
+  settings with the same ID.
+- A body's switch shows a hot tub icon for the spa.
+- Compatible with Home Assistant 2026.9's device registry changes (which
+  deprecate how devices were linked and looked up).
 
 ## 2.2.2
 

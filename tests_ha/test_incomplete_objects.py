@@ -37,7 +37,7 @@ async def test_incomplete_objects_dont_break_setup(
     assert hass.states.get("light.test_pool_party").state == "off"
     assert "effect_list" not in hass.states.get("light.test_pool_party").attributes
 
-    spa = hass.states.get("water_heater.test_pool_spa")
+    spa = hass.states.get("water_heater.spa_heater")
     assert spa.attributes["operation_list"] == ["off", "H0001"]
 
-    assert hass.states.get("binary_sensor.test_pool_vsf").state == "on"
+    assert hass.states.get("binary_sensor.vsf").state == "on"

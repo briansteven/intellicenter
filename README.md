@@ -1,119 +1,111 @@
-# Pentair Intellicenter for Home Assistant
+# Pentair IntelliCenter for Home Assistant
 
 [![hacs][hacsbadge]][hacs]
 [![GitHub Release][releases-shield]][releases]
 [![Tests][tests-shield]][tests]
 
-## About this fork
+Control and monitor a Pentair IntelliCenter pool system from Home Assistant,
+over its local network interface: bodies of water, heaters, pumps, lights,
+featured circuits, IntelliChlor and IntelliChem, sensors and schedules.
 
-This is a maintained fork of [dwradcliffe/intellicenter](https://github.com/dwradcliffe/intellicenter)
-(itself a fork of [jlvaillant/intellicenter](https://github.com/jlvaillant/intellicenter)).
-It is a drop-in replacement: same integration, same entities and entity IDs, no
-configuration changes. (One deliberate exception since 2.2.0: a water heater's
-state is now its operation mode, see the [changelog](CHANGELOG.md#220).) It
-focuses on reliability:
+## About this version
+
+This started as a fork of [dwradcliffe/intellicenter](https://github.com/dwradcliffe/intellicenter)
+(itself a fork of [jlvaillant/intellicenter](https://github.com/jlvaillant/intellicenter))
+and is now maintained independently. It takes fixes from the other versions
+when they apply (see [CHANGELOG.md](CHANGELOG.md) for the details and credits)
+and focuses on reliability:
 
 - **Notices when the IntelliCenter goes away.** When the panel loses power or
-  drops off the network it never closes the connection, so Home Assistant used to
-  stay "connected" to nothing, with every value frozen, until the integration was
-  reloaded. A keep-alive now detects this within about 90 seconds, marks the
-  entities unavailable, and reconnects as soon as the panel is back.
-- **Commands no longer stop working.** Commands were written to the connection
-  from a background thread, which could wedge the request queue so that switches,
-  lights and heater settings silently stopped reaching the panel.
-- **Explains a heater that will never heat.** If the pool or spa has a heater
-  selected that isn't assigned to it in the IntelliCenter's heater settings, the
-  IntelliCenter never heats it: the pump runs and the water stays cold. Home
-  Assistant now shows a repair saying so and how to fix it.
-- Messages split across network packets are processed right away, reconnection
-  survives drops during the initial handshake, values the panel reports as
-  undefined are no longer shown as if they were real, sensors report numbers
-  (so temperatures convert between °F and °C), pH and ORP have units, water
-  heaters support turn on/off, pumps show as running from their actual speed or
-  power, an error that stopped systems on IntelliCenter firmware 3.x from loading
-  is fixed, and Home Assistant 2027.8 won't break the salt sensor.
-
-See [CHANGELOG.md](CHANGELOG.md) for the details and credits: several of these
-fixes come from pull requests and forks by other members of the community.
+  drops off the network it never closes the connection, so Home Assistant used
+  to stay "connected" to nothing, with every value frozen. A keep-alive detects
+  this within about 90 seconds, marks the entities unavailable, and reconnects as
+  soon as the panel is back.
+- **Commands don't stop working.** Commands are sent from Home Assistant's event
+  loop, so the request queue can't wedge.
+- **Says why a body isn't heated.** If the pool or spa stays cold while a heater
+  that isn't assigned to it is selected, a repair explains how to fix the heater
+  settings.
+- **Setup that tells the truth.** An IntelliCenter that can't be reached shows
+  as such (and setup is retried), its address can be changed without removing
+  it, and its diagnostics can be downloaded for a bug report.
+- **Stable entities.** Unique IDs come from the IntelliCenter itself, so
+  removing and adding it again brings back entity customizations.
 
 Please report problems in this repository's
-[issues](https://github.com/briansteven/intellicenter/issues).
+[issues](https://github.com/briansteven/intellicenter/issues), with the
+integration's diagnostics if you can (Settings > Devices & services > Pentair
+IntelliCenter > ⋮ > Download diagnostics: addresses and identifiers are
+removed).
 
 ## Installation
 
-### From HACS
+Requires Home Assistant 2025.1 or later.
 
-1. Install HACS if you haven't already (see [installation guide](https://hacs.xyz/docs/use/)).
-2. Add custom repository `https://github.com/briansteven/intellicenter` as "Integration" in HACS.
-3. Find and download the "Pentair IntelliCenter" integration in HACS.
-4. Restart your Home Assistant.
-5. 'Pentair Intellicenter' should appear thru discovery in your Home Assistant Integration's page
+1. Install [HACS](https://hacs.xyz/docs/use/) if you haven't already.
+2. In HACS, add the custom repository `https://github.com/briansteven/intellicenter`
+   with the type "Integration".
+3. Download "Pentair IntelliCenter" and restart Home Assistant.
+4. The IntelliCenter is usually discovered (Settings > Devices & services). If it
+   isn't, add the "Pentair IntelliCenter" integration and enter its IP address.
+   Giving the IntelliCenter a fixed (reserved) address in your router helps; if
+   the address changes, use **Reconfigure** on the integration to enter the new
+   one.
 
-### Switching from dwradcliffe/intellicenter or jlvaillant/intellicenter
+### Switching from another version
 
-Your existing setup is reused as is: don't delete the integration from Home
-Assistant.
+Keep your existing setup: don't delete the integration from Home Assistant.
 
-1. In HACS, remove the old "Pentair IntelliCenter" repository (this only deletes
-   its files).
-2. Add `https://github.com/briansteven/intellicenter` as a custom repository
-   ("Integration") and download it.
-3. Restart Home Assistant. Your config entry, entities, entity IDs, areas and
-   customizations are kept.
-4. If an automation or template checks a water heater for `on` or `idle`, switch
-   it to the heater's binary sensor (see the [2.2.0 changelog](CHANGELOG.md#220)).
+1. In HACS, remove the other "Pentair IntelliCenter" repository (this only
+   deletes its files) and download this one as above.
+2. Restart Home Assistant.
 
-### Features
+Entities keep their entity IDs, history, areas and customizations, from
+dwradcliffe's, jlvaillant's and joyfulhouse's versions alike. What changes:
 
-- Connect to a Pentair Intellicenter thru the local (network) interface
-- supports Zeroconf discovery
-- reconnects itself gracefully in the Intellicenter reboots and/or gets disconnected
-- "Local push" makes system very responsive
-- The integration works independently of the security setting on the Intellicenter
+- From a 2.x version (this one's or dwradcliffe's), see [3.0.0 in the
+  changelog](CHANGELOG.md#300): bodies, pumps, heaters and chemistry controllers
+  become devices, entity names follow Home Assistant's current conventions, and
+  a few values are corrected.
+- From joyfulhouse's version, entities this version doesn't have (such as its
+  climate and select entities) stay behind, unavailable: delete them from
+  Settings > Entities once you have checked nothing uses them.
+- Going back to a version before 3.0 is not supported: it would create a second
+  set of entities. Restore a backup instead.
 
-### Entities created
+## What you get
 
-- for each body of water (like Pool and Spa) it creates:
-    - a switch to turn the body on and off
-    - a sensor for the last temperature
-    - a sensor for the desired temperature
-    - a water heater entity (if applicable):
-        - choose a heater from the list to enable it, set to OFF otherwise
-        - its state is the selected heater's name, or 'off' when no heater is
-          selected (whether the heater is running right now is the heater's
-          binary sensor, below)
-        Note that the water heater supports turn_on and turn_off operations.
-        for turn_on, it will reuse the last heater chosen.
-      A heater assigned to both the pool and the spa (shared equipment) appears
-      in the water heater of both bodies. If a body has a heater selected that
-      isn't assigned to it, the IntelliCenter won't heat it; a repair issue
-      (Settings > Repairs) explains how to fix that in the heater settings.
-- for each heater, a binary sensor will indicate is the heater is running
-  independently of which body is heating
-- creates a switch for all circuits marked as "Featured" on the IntelliCenter
-  (for example "Cleaner" or "Spa Blower)
-- for each light (and light show) it creates a Light entity
-  Note that color effects are only supported for IntelliBrite or MagicStream lights
-- for each schedule, a binary_sensor will indicate if the schedule is currently running
-  Note that these entities are disabled by default
-- if the pool has a IntelliChem unit, sensors will be created for
-  ph level, ORP level (mV), ph tank level and ORP tank level
-- a switch controls "Vacation mode". It's disabled by default
-- for each pump, a binary_sensor shows whether it is running (from its speed,
-  power or flow when it reports them, from its status otherwise)
-  if the pump supports these features, sensors will reflect power consumption, RPM and GPM
-  Note that the power usage is rounded to the nearest 25W to reduced the amount of changes in HA
-  Also note that depending on the setting of the pump, RPM or GPM can fluctuate constantly.
-- a binary_sensor will indicate if the system is in Freeze prevention mode
-- sensors will be created for each sensor in the system (like Water and Air)
-  Note that a Solar sensor might also be present even if (like in my case) its value
-  is not relevant
+The IntelliCenter is a device; each body of water, pump, heater and chemistry
+controller is a device connected through it, in the IntelliCenter's area unless
+you move it.
 
-### Examples
-
-<img src="device_info.png" width="400"/>
-
-<img src="entities.png" width="400"/>
+- **Each body of water** (pool, spa):
+    - a switch to turn it on and off
+    - its temperature and target temperature
+    - a water heater (if a heater can heat it): pick a heater as its operation
+      mode or `off`, set the target temperature, turn it on (with the heater used
+      last) or off. Its state is the selected heater's name or `off`; whether
+      the heater is running right now is the heater's own sensor. A heater
+      assigned to both the pool and the spa appears in both.
+- **Each heater**: a sensor that is on while it heats (or, for a heat pump,
+  cools) any body.
+- **Each pump**: a sensor that is on while it runs (from its speed, power or flow
+  when it reports them, from its status otherwise), and its power (rounded to
+  25 W), speed and flow when it reports them.
+- **IntelliChlor**: salt level, superchlorinate switch, and the output setting
+  for each body it serves.
+- **IntelliChem**: pH, ORP, water quality (saturation index) and the levels of
+  both tanks (0 to 6, as the IntelliChem shows them).
+- **Lights and light shows**: on/off, with color effects for IntelliBrite,
+  MagicStream and GloBrite lights.
+- **Featured circuits and circuit groups** (for example "Cleaner" or "Spa
+  Blower"): switches.
+- **Air, water and solar sensors.**
+- **Pool and spa covers**, when the IntelliCenter reports their position
+  (read-only; older firmware such as 1.064 doesn't report it).
+- **Freeze protection**, **service mode** (on while the IntelliCenter is in
+  service or timeout mode), **vacation mode** (a switch, disabled by default)
+  and **schedules** (on while running, disabled by default).
 
 ### Connection
 
@@ -123,21 +115,27 @@ answers; if it doesn't within 30 seconds the connection is dropped, the entities
 become unavailable, and reconnection is retried (after 30 seconds, then backing
 off up to every 5 minutes) until the panel is back.
 
-### Caveats
+## Troubleshooting
 
-- while I tried to make the code as robust as possible I could only test using
-  my own pool configuration. In particular, I do not have covers, chemistry, cascades,
-  multiple heaters, etc... These may work out of the box or not...
-- while the choice is metric/english on the Intellicenter is handled, changing it
-  while the integration is running can lead to some values being off.
-- In general it is recommended to reload the integration where significant changes are done to the pool configuration
-- Pool covers are not supported yet.
+- **The pool or spa doesn't heat.** Check Settings > Repairs. In the
+  IntelliCenter's heater settings (Pentair app or panel), a heater must be
+  assigned to every body it should heat; a heater shared by the pool and the
+  spa is assigned to both. Some IntelliCenters don't heat a body with a heater
+  that isn't assigned to it, and Home Assistant says so after the body has
+  stayed cold for 10 minutes.
+- **Setup keeps retrying.** Home Assistant can't reach the IntelliCenter at the
+  address it has: check the address (Reconfigure changes it) and that nothing
+  blocks port 6681.
+- **Changes to the pool's configuration** (new equipment, renamed bodies) are
+  picked up when the integration is reloaded. Circuits renamed at the
+  IntelliCenter are renamed in Home Assistant right away.
+- Changing the IntelliCenter between metric and English units while the
+  integration runs can leave some values off until it is reloaded.
 
 ## Development
 
 The protocol tests need only pytest; the end-to-end tests run the integration
-inside Home Assistant against a fake IntelliCenter
-(`tests/fake_panel.py`):
+inside Home Assistant against a fake IntelliCenter (`tests/fake_panel.py`):
 
 ```
 pip install -r requirements_test.txt
@@ -146,6 +144,10 @@ python -m pytest tests
 pip install -r requirements_test_ha.txt
 python -m pytest tests_ha
 ```
+
+A weekly GitHub Actions job (`.github/workflows/fork-watch.yaml`) reports what
+changed in the other IntelliCenter versions and runs the tests against the
+latest Home Assistant; the report is on the `fork-watch` branch.
 
 [hacs]: https://github.com/hacs/integration
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange

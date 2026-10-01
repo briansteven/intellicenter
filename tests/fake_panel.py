@@ -31,6 +31,7 @@ DEFAULT_OBJECTS = {
         "MODE": "ENGLISH",
         "SNAME": "test-system-sname",
         "VACFLO": "OFF",
+        "SERVICE": "AUTO",
     },
     "B1101": {
         "OBJTYP": "BODY",
@@ -153,6 +154,15 @@ DEFAULT_OBJECTS = {
         "SNAME": "Pool",
         "ACT": "ON",
         "VACFLO": "OFF",
+    },
+    # a cover object as IC 1.064 defines one, installed or not: no position
+    "CVR01": {
+        "OBJTYP": "EXTINSTR",
+        "SUBTYP": "COVER",
+        "SNAME": "Cover 1",
+        "BODY": "B1101",
+        "STATUS": "OFF",
+        "NORMAL": "ON",
     },
 }
 

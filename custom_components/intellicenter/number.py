@@ -2,18 +2,12 @@
 
 import logging
 
-from homeassistant.components.number import (
-    DEFAULT_MAX_VALUE,
-    DEFAULT_MIN_VALUE,
-    DEFAULT_STEP,
-    NumberEntity,
-)
+from homeassistant.components.number import NumberEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE
+from homeassistant.const import PERCENTAGE, EntityCategory
 from homeassistant.core import HomeAssistant
 
-from . import PoolEntity
-from .const import DOMAIN
+from .entity import PoolEntity
 from .pyintellicenter import (
     BODY_ATTR,
     CHEM_TYPE,
@@ -33,7 +27,7 @@ async def async_setup_entry(
 ):
     """Load pool numbers based on a config entry."""
 
-    controller: ModelController = hass.data[DOMAIN][entry.entry_id].controller
+    controller: ModelController = entry.runtime_data.controller
 
     numbers = []
 
@@ -46,8 +40,9 @@ async def async_setup_entry(
         ):
             intellichlor_bodies = (obj[BODY_ATTR] or "").split()
 
-            # Only create number entities for bodies that are actually configured
-            for index, body_id in enumerate(intellichlor_bodies):
+            # one output setting per body the IntelliChlor serves (PRIM for the
+            # first, SEC for the second)
+            for index, body_id in enumerate(intellichlor_bodies[:2]):
                 body = controller.model[body_id]
                 if body is not None:
                     attribute_key = PRIM_ATTR if index == 0 else SEC_ATTR
@@ -58,7 +53,7 @@ async def async_setup_entry(
                             obj,
                             unit_of_measurement=PERCENTAGE,
                             attribute_key=attribute_key,
-                            name=f"+ Output % ({body.sname})",
+                            name=f"{body.sname or body.objnam} output",
                         )
                     )
 
@@ -71,21 +66,20 @@ async def async_setup_entry(
 class PoolNumber(PoolEntity, NumberEntity):
     """Representation of a pool number entity."""
 
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_native_min_value = 0
+    _attr_native_max_value = 100
+    _attr_native_step = 1
+
     def __init__(
         self,
         entry: ConfigEntry,
         controller: ModelController,
         poolObject: PoolObject,
-        min_value: float = DEFAULT_MIN_VALUE,
-        max_value: float = DEFAULT_MAX_VALUE,
-        step: float = DEFAULT_STEP,
         **kwargs,
     ):
         """Initialize."""
         super().__init__(entry, controller, poolObject, **kwargs)
-        self._attr_native_min_value = min_value
-        self._attr_native_max_value = max_value
-        self._attr_native_step = step
         self._attr_icon = "mdi:gauge"
 
     @property

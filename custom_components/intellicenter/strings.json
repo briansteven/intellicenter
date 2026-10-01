@@ -1,30 +1,46 @@
 {
   "config": {
-    "flow_title": "Pentair Intellicenter: {name}",
+    "flow_title": "Pentair IntelliCenter: {name}",
     "step": {
       "user": {
-        "title": "Connect to Pentair Intellicenter",
+        "title": "Connect to your Pentair IntelliCenter",
         "data": {
-          "host": "IP Address"
+          "host": "IP address"
+        },
+        "data_description": {
+          "host": "The address of the IntelliCenter on your network. A fixed (reserved) address works best."
+        }
+      },
+      "reconfigure": {
+        "title": "Change the IntelliCenter's address",
+        "data": {
+          "host": "IP address"
+        },
+        "data_description": {
+          "host": "The address of the IntelliCenter on your network. A fixed (reserved) address works best."
         }
       },
       "zeroconf_confirm": {
         "title": "Connect to your Pentair IntelliCenter",
-        "description": "Do you want to setup {name} ({host})?"
+        "description": "Do you want to set up \"{name}\" ({host})?"
       }
     },
     "error": {
       "cannot_connect": "Failed to connect",
-      "unknown": "Unexpected Error"
+      "unknown": "Unexpected error"
     },
     "abort": {
-      "already_configured": "Device is alreay configured"
+      "already_configured": "This IntelliCenter is already configured",
+      "cannot_connect": "Failed to connect",
+      "unknown": "Unexpected error",
+      "reconfigure_successful": "The address was changed",
+      "wrong_device": "That address belongs to another IntelliCenter than the one being reconfigured"
     }
   },
   "issues": {
-    "heater_not_assigned": {
-      "title": "{heater} isn't assigned to the {body}",
-      "description": "The {body} has {heater} selected as its heat source, but {heater} isn't assigned to the {body} in the IntelliCenter's heater settings, so the IntelliCenter won't heat the {body}: its pump runs and the water stays cold. Until it is assigned, Home Assistant shows no water heater for the {body}.\n\nTo fix it, assign {heater} to the {body} in the heater settings of the Pentair app or at the IntelliCenter panel. This message goes away by itself once it is."
+    "heater_not_heating": {
+      "title": "The {body} isn't being heated",
+      "description": "The {body} is on and below its target temperature with {heater} selected, but the IntelliCenter hasn't heated it for {minutes} minutes. {heater} isn't assigned to the {body} in the IntelliCenter's heater settings, and some IntelliCenters don't heat a body with a heater that isn't assigned to it.\n\nTo fix it, assign {heater} to the {body} in the heater settings of the Pentair app or at the IntelliCenter panel (a heater shared by the pool and the spa is assigned to both). This message goes away by itself once the {body} is heated or {heater} is assigned to it."
     }
   }
 }

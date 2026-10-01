@@ -37,6 +37,18 @@ def auto_enable_custom_integrations(enable_custom_integrations):
     yield
 
 
+@pytest.fixture(autouse=True)
+def no_deprecated_calls(caplog):
+    """Fail a test in which Home Assistant reports a deprecated call by the integration."""
+    yield
+    reports = [
+        record.getMessage()
+        for record in caplog.records
+        if "Detected that custom integration" in record.getMessage()
+    ]
+    assert not reports, reports
+
+
 @pytest.fixture
 def panel_objects():
     """Object model served by the fake panel (None: the default one)."""
@@ -69,19 +81,14 @@ def connection_settings():
 
 
 @pytest.fixture
-async def integration(hass, panel, connection_settings):
-    """Set up the integration against the fake panel and tear it down after."""
-    import custom_components.intellicenter as ic
+def not_heating_delay():
+    """Seconds before a body that isn't heated is reported (None: the default)."""
+    return None
 
-    real_controller = ic.ModelController
 
-    def controller_factory(host, model, **kwargs):
-        kwargs.update(connection_settings)
-        return real_controller(host, model, port=panel.port, **kwargs)
-
-    # the fake panel reports Fahrenheit, like most US systems
-    await hass.config.async_update(unit_system="us_customary")
-
+@pytest.fixture
+def config_entry(hass):
+    """The config entry of the system under test (not set up yet)."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Pool",
@@ -89,14 +96,46 @@ async def integration(hass, panel, connection_settings):
         unique_id="test-unique-id",
     )
     entry.add_to_hass(hass)
+    return entry
 
-    with patch.object(ic, "ModelController", controller_factory):
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        # entities are created once the connection to the panel is up
-        await wait_for(lambda: hass.states.get("switch.test_pool_pool") is not None)
-        await hass.async_block_till_done()
 
-        yield entry
+@pytest.fixture
+def use_panel(panel, connection_settings, not_heating_delay):
+    """Make the integration connect to the fake panel while this is active."""
+    import contextlib
 
-        assert await hass.config_entries.async_unload(entry.entry_id)
+    import custom_components.intellicenter as ic
+    import custom_components.intellicenter.issues as issues
+
+    real_controller = ic.ModelController
+
+    def controller_factory(host, model, **kwargs):
+        kwargs.update(connection_settings)
+        return real_controller(host, model, port=panel.port, **kwargs)
+
+    stack = contextlib.ExitStack()
+    stack.enter_context(patch.object(ic, "ModelController", controller_factory))
+    if not_heating_delay is not None:
+        stack.enter_context(
+            patch.object(issues, "NOT_HEATING_DELAY", not_heating_delay)
+        )
+    with stack:
+        yield
+
+
+@pytest.fixture
+async def integration(hass, config_entry, use_panel):
+    """Set up the integration against the fake panel and tear it down after."""
+    # the fake panel reports Fahrenheit, like most US systems
+    await hass.config.async_update(unit_system="us_customary")
+
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    yield config_entry
+
+    from homeassistant.config_entries import ConfigEntryState
+
+    if config_entry.state is ConfigEntryState.LOADED:
+        assert await hass.config_entries.async_unload(config_entry.entry_id)
         await hass.async_block_till_done()

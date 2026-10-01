@@ -12,8 +12,7 @@ from homeassistant.components.light import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from . import PoolEntity
-from .const import DOMAIN
+from .entity import PoolEntity
 from .pyintellicenter import (
     ACT_ATTR,
     CIRCUIT_ATTR,
@@ -32,6 +31,7 @@ LIGHTS_EFFECTS = {
     "ROMAN": "Romance",
     "AMERCA": "American",
     "ROYAL": "Royal",
+    "SAMMOD": "SAm",
     "WHITER": "White",
     "REDR": "Red",
     "BLUER": "Blue",
@@ -45,7 +45,7 @@ async def async_setup_entry(
 ):
     """Load pool lights based on a config entry."""
 
-    controller: ModelController = hass.data[DOMAIN][entry.entry_id].controller
+    controller: ModelController = entry.runtime_data.controller
 
     lights = []
 
@@ -150,4 +150,4 @@ class PoolLight(PoolEntity, LightEntity):
 
         myUpdates = updates.get(self._poolObject.objnam, {})
 
-        return myUpdates and {STATUS_ATTR, USE_ATTR} & myUpdates.keys()
+        return bool({STATUS_ATTR, USE_ATTR} & myUpdates.keys())
