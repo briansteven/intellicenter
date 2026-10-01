@@ -30,11 +30,12 @@
       "unknown": "Unexpected error"
     },
     "abort": {
-      "already_configured": "This IntelliCenter is already configured",
+      "already_configured": "This IntelliCenter is already configured (with the address given, if it had changed)",
       "cannot_connect": "Failed to connect",
       "unknown": "Unexpected error",
       "reconfigure_successful": "The address was changed",
-      "wrong_device": "That address belongs to another IntelliCenter than the one being reconfigured"
+      "wrong_device": "That address belongs to another IntelliCenter than the one being reconfigured",
+      "already_in_progress": "This IntelliCenter is already being set up"
     }
   },
   "issues": {

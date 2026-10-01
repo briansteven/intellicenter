@@ -126,6 +126,8 @@ class IntelliCenterHandler(ConnectionHandler):
     @callback
     def disconnected(self, controller, exc):
         """Handle the connection to the IntelliCenter being lost."""
+        # what the model says is stale until reconnected (see reconnected)
+        self.monitor.async_cancel_timers()
         dispatcher.async_dispatcher_send(
             self._hass, connection_signal(self._entry_id), False
         )
@@ -155,12 +157,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: IntelliCenterConfigEntry
     controller = ModelController(host, PoolModel(ATTRIBUTES_MAP), loop=hass.loop)
     handler = IntelliCenterHandler(hass, entry, controller)
 
+    try:
+        await _async_setup(hass, entry, handler)
+    except BaseException:
+        # nothing may keep running (or reconnecting) after a failed setup
+        handler.monitor.async_stop(clear_issues=False)
+        handler.stop()
+        raise
+
+    return True
+
+
+async def _async_setup(
+    hass: HomeAssistant, entry: IntelliCenterConfigEntry, handler: IntelliCenterHandler
+) -> None:
+    controller = handler.controller
+    host = controller.host
+
     # connect now, so that a system that can't be reached shows as such (and
     # setup is retried) instead of a setup that succeeds without any entity
     try:
         await handler.connect(SETUP_TIMEOUT)
     except Exception as err:  # noqa: BLE001 - any failure: try again later
-        handler.monitor.async_stop(clear_issues=False)
         raise ConfigEntryNotReady(
             f"cannot connect to the IntelliCenter at {host}: {err!r}"
         ) from err
@@ -175,15 +193,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: IntelliCenterConfigEntry
 
     entry.runtime_data = handler
 
-    @callback
-    def on_hass_stop(event: Event) -> None:
-        """Disconnect when Home Assistant stops."""
-        handler.stop()
-
-    entry.async_on_unload(
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, on_hass_stop)
-    )
-
     _async_migrate_registry(hass, entry, controller.model)
 
     device_registry = dr.async_get(hass)
@@ -197,18 +206,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: IntelliCenterConfigEntry
         )
     }
 
-    try:
-        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    except BaseException:
-        handler.monitor.async_stop(clear_issues=False)
-        handler.stop()
-        raise
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     _async_place_new_devices(hass, entry, known_devices)
 
     handler.monitor.async_start()
 
-    return True
+    @callback
+    def on_hass_stop(event: Event) -> None:
+        """Disconnect when Home Assistant stops."""
+        handler.stop()
+
+    entry.async_on_unload(
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, on_hass_stop)
+    )
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: IntelliCenterConfigEntry) -> bool:
@@ -228,16 +239,25 @@ async def async_unload_entry(hass: HomeAssistant, entry: IntelliCenterConfigEntr
 async def async_remove_config_entry_device(
     hass: HomeAssistant, entry: IntelliCenterConfigEntry, device: dr.DeviceEntry
 ) -> bool:
-    """Allow removing the device of equipment the IntelliCenter no longer has."""
-    model = entry.runtime_data.controller.model
-    prefix = f"{system_id(entry)}_"
+    """Allow removing a device, except the IntelliCenter's and current equipment's.
+
+    The device of equipment the IntelliCenter still has would come back at the
+    next start anyway.
+    """
+    handler = getattr(entry, "runtime_data", None)
+    model = handler.controller.model if handler else None
+    system = system_id(entry)
+    prefix = f"{system}_"
     for domain, identifier in device.identifiers:
         if domain != DOMAIN:
             continue
-        if not identifier.startswith(prefix):
-            # the IntelliCenter itself
+        if identifier == system:
             return False
-        if model[identifier[len(prefix):]] is not None:
+        if (
+            model is not None
+            and identifier.startswith(prefix)
+            and model[identifier[len(prefix):]] is not None
+        ):
             return False
     return True
 

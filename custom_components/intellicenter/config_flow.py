@@ -63,8 +63,10 @@ class IntelliCenterConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("unexpected error while connecting")
                 errors["base"] = "unknown"
             else:
-                await self.async_set_unique_id(system_info.uniqueID)
-                self._abort_if_unique_id_mismatch(reason="wrong_device")
+                # (entries made by very old versions have no unique ID to check)
+                if entry.unique_id is not None:
+                    await self.async_set_unique_id(system_info.uniqueID)
+                    self._abort_if_unique_id_mismatch(reason="wrong_device")
                 return self.async_update_reload_and_abort(
                     entry, data_updates={CONF_HOST: user_input[CONF_HOST]}
                 )

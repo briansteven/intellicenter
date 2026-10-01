@@ -171,11 +171,16 @@ class HeaterAssignmentMonitor:
             cancel()
 
     @callback
-    def async_stop(self, clear_issues: bool = True) -> None:
-        """Cancel the timers and, unless told otherwise, remove the issues."""
+    def async_cancel_timers(self) -> None:
+        """Stop waiting (until the next check), e.g. while disconnected."""
         for cancel in self._timers.values():
             cancel()
         self._timers.clear()
+
+    @callback
+    def async_stop(self, clear_issues: bool = True) -> None:
+        """Cancel the timers and, unless told otherwise, remove the issues."""
+        self.async_cancel_timers()
         if clear_issues:
             for body in self._model.getByType(BODY_TYPE):
                 ir.async_delete_issue(self._hass, DOMAIN, self._issue_id(body))

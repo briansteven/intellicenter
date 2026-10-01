@@ -158,3 +158,129 @@ async def test_water_heater_state_is_its_operation_mode(
     panel.set_params("B1101", {"HEATER": "00000", "HTMODE": "0"})
     await wait_for(lambda: hass.states.get("water_heater.pool_heater").state == "off")
     assert hass.states.get("binary_sensor.gas_heater").state == "off"
+
+
+def controller_tasks():
+    """The connection's tasks still running (keep-alive, reconnection, start)."""
+    names = []
+    for task in asyncio.all_tasks():
+        name = getattr(task.get_coro(), "__qualname__", "")
+        if not task.done() and any(
+            key in name for key in ("_keepAlive", "_starter", "ModelController.start")
+        ):
+            names.append(name)
+    return names
+
+
+async def test_failed_setup_after_connecting_leaves_nothing_running(
+    hass: HomeAssistant, config_entry, use_panel, panel
+) -> None:
+    """An error after the connection is up closes it (nothing reconnects later)."""
+    from unittest.mock import patch
+
+    import custom_components.intellicenter as ic
+    from homeassistant.config_entries import ConfigEntryState
+
+    def fail(*args, **kwargs):
+        raise ValueError("unexpected")
+
+    with patch.object(ic, "_async_migrate_registry", fail):
+        assert not await hass.config_entries.async_setup(config_entry.entry_id)
+    assert config_entry.state is ConfigEntryState.SETUP_ERROR
+    await wait_for(lambda: not panel._writers)
+    assert controller_tasks() == []
+
+
+async def test_cancelled_setup_leaves_nothing_running(
+    hass: HomeAssistant, config_entry, use_panel, panel
+) -> None:
+    """A setup cancelled while loading the model stops the connection and timers."""
+    from unittest.mock import patch
+
+    import custom_components.intellicenter as ic
+
+    # a cold pool with a heater assigned to the spa only: a timer starts early
+    panel.objects["H0001"]["BODY"] = "B1202"
+    panel.objects["B1101"].update({"LSTTMP": "70", "LOTMP": "80"})
+    real_answer = panel._answer
+
+    def answer(request):
+        # never answer the last part of the model: setup hangs there
+        if request.get("command") == "RequestParamList" and any(
+            item["objnam"] == "CVR01" for item in request["objectList"]
+        ):
+            return []
+        return real_answer(request)
+
+    panel._answer = answer
+    handlers = []
+    real_init = ic.IntelliCenterHandler.__init__
+
+    def init(self, *args, **kwargs):
+        real_init(self, *args, **kwargs)
+        handlers.append(self)
+
+    with patch.object(ic.IntelliCenterHandler, "__init__", init):
+        task = hass.async_create_task(
+            hass.config_entries.async_setup(config_entry.entry_id)
+        )
+        await wait_for(lambda: handlers and handlers[0].monitor._timers)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    assert handlers[0].monitor._timers == {}
+    await wait_for(lambda: not panel._writers)
+    assert controller_tasks() == []
+
+
+async def test_connection_lost_while_entities_are_set_up(
+    hass: HomeAssistant, config_entry, use_panel, panel
+) -> None:
+    """Entities set up after the connection dropped are unavailable."""
+    from unittest.mock import patch
+
+    await hass.config.async_update(unit_system="us_customary")
+    real_forward = hass.config_entries.async_forward_entry_setups
+
+    async def forward(entry, platforms):
+        panel.silent = True
+        for writer in list(panel._writers):
+            writer.transport.abort()
+        await wait_for(lambda: not entry.runtime_data.controller.connected)
+        return await real_forward(entry, platforms)
+
+    with patch.object(hass.config_entries, "async_forward_entry_setups", forward):
+        assert await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+    assert hass.states.get("switch.pool").state == STATE_UNAVAILABLE
+    assert await hass.config_entries.async_unload(config_entry.entry_id)
+
+
+async def test_ipv6_address(hass: HomeAssistant, panel) -> None:
+    """An IPv6 address works, with a link to the IntelliCenter's web page."""
+    from unittest.mock import patch
+
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    import custom_components.intellicenter as ic
+    from homeassistant.config_entries import ConfigEntryState
+    from homeassistant.helpers import device_registry as dr
+
+    entry = MockConfigEntry(
+        domain="intellicenter", title="Test Pool", data={"host": "fd00::50"},
+        unique_id="test-unique-id",
+    )
+    entry.add_to_hass(hass)
+    real_controller = ic.ModelController
+
+    def controller_factory(host, model, **kwargs):
+        assert host == "fd00::50"
+        return real_controller("127.0.0.1", model, port=panel.port, **kwargs)
+
+    with patch.object(ic, "ModelController", controller_factory):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.LOADED
+    device = dr.async_get(hass).async_get(entry.runtime_data.system_device_id)
+    assert device.configuration_url == "http://[fd00::50]"
+    assert await hass.config_entries.async_unload(entry.entry_id)

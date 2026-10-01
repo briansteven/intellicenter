@@ -145,3 +145,20 @@ async def test_reconfigure_with_an_unreachable_address(
         )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}
+
+
+async def test_reconfigure_an_entry_without_unique_id(
+    hass: HomeAssistant, flow_uses_panel
+) -> None:
+    """Entries made by very old versions have no unique ID: their address can change."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry = MockConfigEntry(domain=DOMAIN, title="Test Pool", data={"host": "10.0.0.9"})
+    entry.add_to_hass(hass)
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"host": "127.0.0.1"}
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data == {"host": "127.0.0.1"}

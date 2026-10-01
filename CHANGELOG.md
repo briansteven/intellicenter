@@ -41,10 +41,10 @@ customizations; read "What changes when you update" below.
   version and nodejs-poolController); the sensors now show 0 to 6. **Check
   automations that compare a tank level with a number**: to alert at the same
   point as before, lower the number by 1.
-- **Pump flow is a flow rate** (`gal/min`, converted to L/min where Home
-  Assistant uses metric units) instead of a plain number in `gpm`. Home
-  Assistant may ask, in Developer tools > Statistics, what to do about the unit
-  of the existing statistics: the values are the same, so keep them.
+- **Pump flow is a flow rate** (`gal/min`, which the entity's settings can show
+  in L/min) instead of a plain number in `gpm`. Home Assistant may ask, in
+  Developer tools > Statistics, what to do about the unit of the existing
+  statistics: the values are the same, so keep them.
 - **Unique IDs come from the IntelliCenter** instead of the config entry, like
   dwradcliffe/intellicenter#46: after removing and adding the system again, Home
   Assistant restores entity customizations (within 30 days). Existing entities
@@ -106,6 +106,8 @@ customizations; read "What changes when you update" below.
 
 - A chlorinator serving more than two bodies no longer creates two output
   settings with the same ID.
+- Entities set up while the connection drops show as unavailable, not with
+  their last values.
 - A body's switch shows a hot tub icon for the spa.
 - Compatible with Home Assistant 2026.9's device registry changes (which
   deprecate how devices were linked and looked up).

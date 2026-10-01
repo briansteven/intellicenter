@@ -40,6 +40,18 @@ jobs:
       - run: pip install -r requirements_test_ha.txt
       - run: python -m pytest tests_ha
 
+  home-assistant-oldest:
+    # the oldest release hacs.json allows
+    name: Home Assistant tests (2025.1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements_test_ha_oldest.txt
+      - run: python -m pytest tests_ha
+
   hacs:
     name: HACS validation
     runs-on: ubuntu-latest

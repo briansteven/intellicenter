@@ -113,6 +113,19 @@ async def test_removing_devices(hass: HomeAssistant, integration) -> None:
     )
     assert await async_remove_config_entry_device(hass, integration, gone)
 
+    # a device left by another version
+    stale = registry.async_get_or_create(
+        config_entry_id=integration.entry_id,
+        identifiers={(DOMAIN, integration.entry_id)},
+        name="Old system device",
+    )
+    assert await async_remove_config_entry_device(hass, integration, stale)
+
+    # while the integration isn't loaded
+    assert await hass.config_entries.async_unload(integration.entry_id)
+    assert await async_remove_config_entry_device(hass, integration, gone)
+    assert not await async_remove_config_entry_device(hass, integration, system)
+
 
 async def test_migration_from_earlier_versions(
     hass: HomeAssistant, config_entry, use_panel, caplog

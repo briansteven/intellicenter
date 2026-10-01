@@ -1,0 +1,2 @@
+# Home Assistant level tests against the oldest release hacs.json allows.
+pytest-homeassistant-custom-component==0.13.205  # homeassistant==2025.1.4

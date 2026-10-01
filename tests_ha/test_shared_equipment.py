@@ -138,3 +138,17 @@ async def test_issues_of_earlier_versions_are_removed(
     await hass.async_block_till_done()
     assert ir.async_get(hass).async_get_issue("intellicenter", legacy) is None
     assert await hass.config_entries.async_unload(config_entry.entry_id)
+
+
+@pytest.mark.parametrize("not_heating_delay", [0.5])
+@pytest.mark.parametrize("panel_objects", [objects("B1101", "H0001", **COLD_SPA)])
+async def test_nothing_reported_while_disconnected(
+    hass: HomeAssistant, integration, panel
+) -> None:
+    """While the IntelliCenter is unreachable its values are stale: no issue."""
+    panel.silent = True
+    for writer in list(panel._writers):
+        writer.transport.abort()
+    await wait_for(lambda: not integration.runtime_data.controller.connected)
+    await asyncio.sleep(0.8)
+    assert spa_issue(hass, integration) is None

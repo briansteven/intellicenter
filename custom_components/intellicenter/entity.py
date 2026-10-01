@@ -13,6 +13,7 @@ from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr, dispatcher
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
+from yarl import URL
 
 from .const import DOMAIN, connection_signal, update_signal
 from .pyintellicenter import (
@@ -85,14 +86,21 @@ def system_id(entry: ConfigEntry) -> str:
 def system_device_info(entry: ConfigEntry, controller: ModelController) -> DeviceInfo:
     """Return the device of the IntelliCenter itself."""
     info = controller.systemInfo
-    return DeviceInfo(
+    device_info = DeviceInfo(
         identifiers={(DOMAIN, system_id(entry))},
         manufacturer="Pentair",
         model="IntelliCenter",
         name=info.propName if info else entry.title,
         sw_version=info.swVersion if info else None,
-        configuration_url=f"http://{entry.data[CONF_HOST]}",
     )
+    try:
+        # (brackets around an IPv6 address)
+        device_info["configuration_url"] = str(
+            URL.build(scheme="http", host=entry.data[CONF_HOST])
+        )
+    except ValueError:
+        pass
+    return device_info
 
 
 def object_device_identifier(entry: ConfigEntry, objnam: str) -> tuple[str, str]:
@@ -199,6 +207,8 @@ class PoolEntity(Entity):
 
     async def async_added_to_hass(self):
         """Entity is added to Home Assistant."""
+        # the connection may have dropped while the entities were being set up
+        self._attr_available = self._controller.connected
         self.async_on_remove(
             dispatcher.async_dispatcher_connect(
                 self.hass, update_signal(self._entry_id), self._update_callback
