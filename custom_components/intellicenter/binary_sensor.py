@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from . import PoolEntity
 from .const import DOMAIN
 from .pyintellicenter import (
-    BODY_ATTR,
+    BODY_TYPE,
     CIRCUIT_TYPE,
     GPM_ATTR,
     HEATER_ATTR,
@@ -164,18 +164,21 @@ class HeaterBinarySensor(PoolEntity, BinarySensorEntity):
     ):
         """Initialize."""
         super().__init__(entry, controller, poolObject, **kwargs)
-        self._bodies = set(poolObject[BODY_ATTR].split(" "))
         self._attr_icon = "mdi:fire-circle"
 
     @property
     def is_on(self) -> bool:
-        """Return true if sensor is on."""
-        for bodyObjnam in self._bodies:
-            body = self._controller.model[bodyObjnam]
+        """Return true if the heater is heating any body of water.
+
+        Every body is considered, not only those in the heater's BODY attribute:
+        on shared pool/spa equipment that attribute can list only one of them
+        while the heater also heats the other.
+        """
+        for body in self._controller.model.getByType(BODY_TYPE):
             if (
                 body[STATUS_ATTR] == "ON"
                 and body[HEATER_ATTR] == self._poolObject.objnam
-                and body[HTMODE_ATTR] != "0"
+                and body[HTMODE_ATTR] not in (None, "0")
             ):
                 return True
         return False
@@ -183,7 +186,12 @@ class HeaterBinarySensor(PoolEntity, BinarySensorEntity):
     def isUpdated(self, updates: dict[str, dict[str, str]]) -> bool:
         """Return true if the entity is updated by the updates from Intellicenter."""
 
-        for objnam in self._bodies & updates.keys():
-            if {STATUS_ATTR, HEATER_ATTR, HTMODE_ATTR} & updates[objnam].keys():
+        for objnam, changes in updates.items():
+            obj = self._controller.model[objnam]
+            if (
+                obj is not None
+                and obj.objtype == BODY_TYPE
+                and {STATUS_ATTR, HEATER_ATTR, HTMODE_ATTR} & changes.keys()
+            ):
                 return True
         return False

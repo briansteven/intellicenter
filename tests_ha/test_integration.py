@@ -106,3 +106,18 @@ async def test_unload_before_the_panel_is_reached(
         assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED
     assert "Error unloading entry" not in caplog.text
+
+
+@pytest.mark.parametrize("body", ["B1101", "B1202"])
+async def test_shared_heater_reports_heating_either_body(
+    hass: HomeAssistant, integration, panel, body
+) -> None:
+    """The heater sensor is on while it heats the pool or the spa."""
+    entity_id = "binary_sensor.test_pool_gas_heater"
+    assert hass.states.get(entity_id).state == "off"
+
+    panel.set_params(body, {"STATUS": "ON", "HTMODE": "1"})
+    await wait_for(lambda: hass.states.get(entity_id).state == "on")
+
+    panel.set_params(body, {"HTMODE": "0"})
+    await wait_for(lambda: hass.states.get(entity_id).state == "off")
