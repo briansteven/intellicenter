@@ -440,7 +440,10 @@ class ModelController(BaseController):
     def _applyUpdates(self, changesAsList):
         """Apply updates received to the model."""
 
-        updates = self._model.processUpdates(changesAsList)
+        # the system reports an attribute it has no value for by echoing its name
+        # ("ACT": "ACT"); drop those like the initial load does instead of storing
+        # the attribute name as if it were its value
+        updates = self._model.processUpdates(prune(changesAsList))
 
         # if an update happens on the SYSTEM object
         # also applies it to our cached SystemInfo

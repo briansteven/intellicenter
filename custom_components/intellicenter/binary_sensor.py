@@ -94,8 +94,11 @@ class PoolBinarySensor(PoolEntity, BinarySensorEntity):
 
     @property
     def is_on(self):
-        """Return true if sensor is on."""
-        return self._poolObject[self._attribute_key] == self._valueForON
+        """Return true if sensor is on, None if the system doesn't say."""
+        value = self._poolObject[self._attribute_key]
+        if value is None:
+            return None
+        return value == self._valueForON
 
 
 # -------------------------------------------------------------------------------------
