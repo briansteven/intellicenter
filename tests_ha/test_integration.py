@@ -121,3 +121,17 @@ async def test_shared_heater_reports_heating_either_body(
 
     panel.set_params(body, {"HTMODE": "0"})
     await wait_for(lambda: hass.states.get(entity_id).state == "off")
+
+
+async def test_temperatures_follow_home_assistant_units(
+    hass: HomeAssistant, integration, panel
+) -> None:
+    """A Fahrenheit panel shows Celsius values in a metric Home Assistant."""
+    await hass.config.async_update(unit_system="metric")
+    panel.set_params("SSW11", {"SOURCE": "77"})
+
+    entity_id = "sensor.test_pool_water_sensor_1"
+    await wait_for(lambda: hass.states.get(entity_id).state not in ("78", "77"))
+    state = hass.states.get(entity_id)
+    assert state.attributes["unit_of_measurement"] == "°C"
+    assert float(state.state) == pytest.approx(25.0, abs=0.1)
