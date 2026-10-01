@@ -1,15 +1,15 @@
 {
     "domain": "intellicenter",
     "name": "Pentair IntelliCenter",
-    "codeowners": ["@dwradcliffe"],
+    "codeowners": ["@briansteven"],
     "config_flow": true,
     "dependencies": [],
-    "documentation": "https://github.com/dwradcliffe/intellicenter",
+    "documentation": "https://github.com/briansteven/intellicenter",
     "iot_class": "local_push",
-    "issue_tracker": "https://github.com/dwradcliffe/intellicenter/issues",
+    "issue_tracker": "https://github.com/briansteven/intellicenter/issues",
     "quality_scale": "gold",
     "requirements": [],
-    "version": "2.0.3",
+    "version": "2.1.0",
     "zeroconf": [
         { "type":"_http._tcp.local.", "name":"pentair*" }
       ]
