@@ -11,9 +11,11 @@ from homeassistant.components.number import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
+    REVOLUTIONS_PER_MINUTE,
     EntityCategory,
     UnitOfElectricPotential,
     UnitOfTime,
+    UnitOfVolumeFlowRate,
 )
 from homeassistant.core import HomeAssistant
 
@@ -32,11 +34,21 @@ from .pyintellicenter import (
     BODY_ATTR,
     CALC_ATTR,
     CHEM_TYPE,
+    CIRCUIT_ATTR,
     CYACID_ATTR,
+    MAX_ATTR,
+    MAXF_ATTR,
+    MIN_ATTR,
+    MINF_ATTR,
     ORPSET_ATTR,
+    PARENT_ATTR,
     PHSET_ATTR,
+    PMPCIRC_TYPE,
     PRIM_ATTR,
+    PUMP_TYPE,
     SEC_ATTR,
+    SELECT_ATTR,
+    SPEED_ATTR,
     TIMOUT_ATTR,
     ModelController,
     PoolObject,
@@ -70,6 +82,17 @@ async def async_setup_entry(
 
     obj: PoolObject
     for obj in controller.model.objectList:
+        if obj.objtype == PMPCIRC_TYPE:
+            pump = controller.model[obj[PARENT_ATTR]] if obj[PARENT_ATTR] else None
+            circuit = controller.model[obj[CIRCUIT_ATTR]] if obj[CIRCUIT_ATTR] else None
+            if (
+                pump is not None
+                and pump.objtype == PUMP_TYPE
+                and circuit is not None
+                and obj[SPEED_ATTR] is not None
+            ):
+                numbers.append(PumpSpeed(entry, controller, obj, pump, circuit))
+            continue
         if obj.objtype != CHEM_TYPE:
             continue
         if obj.subtype == "ICHLOR":
@@ -186,3 +209,74 @@ class PoolNumber(PoolEntity, NumberEntity):
         raw = value * self._scale
         text = f"{raw:.{self._decimals}f}" if self._decimals else str(int(round(raw)))
         await self.async_request_changes({self._attribute_key: text})
+
+
+# -------------------------------------------------------------------------------------
+
+
+class PumpSpeed(PoolNumber):
+    """The speed (or flow) a pump runs at for one of its circuits.
+
+    The IntelliCenter keeps one setting per circuit a pump serves (its PMPCIRC
+    objects): the pump runs at the highest setting of the circuits that are on.
+    Disabled by default: changing pump speeds is for those who choose to.
+    """
+
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, entry, controller, poolObject, pump, circuit):
+        """Initialize."""
+        super().__init__(
+            entry,
+            controller,
+            poolObject,
+            attribute_key=SPEED_ATTR,
+            name=f"{circuit.sname or circuit.objnam} speed",
+            icon="mdi:speedometer",
+            mode=NumberMode.BOX,
+            deviceObject=pump,
+            enabled_by_default=False,
+        )
+        self._pump = pump
+
+    @property
+    def _usesFlow(self) -> bool:
+        return self._poolObject[SELECT_ATTR] == "GPM"
+
+    def _limit(self, attribute, default):
+        try:
+            return float(self._pump[attribute])
+        except (TypeError, ValueError):
+            return default
+
+    @property
+    def native_unit_of_measurement(self) -> str:
+        """Return RPM or GPM, as the setting is."""
+        return (
+            UnitOfVolumeFlowRate.GALLONS_PER_MINUTE
+            if self._usesFlow
+            else REVOLUTIONS_PER_MINUTE
+        )
+
+    @property
+    def native_min_value(self) -> float:
+        """Return the pump's minimum."""
+        return self._limit(MINF_ATTR, 15) if self._usesFlow else self._limit(MIN_ATTR, 450)
+
+    @property
+    def native_max_value(self) -> float:
+        """Return the pump's maximum."""
+        return (
+            self._limit(MAXF_ATTR, 140) if self._usesFlow else self._limit(MAX_ATTR, 3450)
+        )
+
+    @property
+    def native_step(self) -> float:
+        """Return the step (1 GPM or 10 RPM)."""
+        return 1 if self._usesFlow else 10
+
+    def isUpdated(self, updates: dict[str, dict[str, str]]) -> bool:
+        """Return true if the setting (or its unit) changed."""
+        return bool(
+            {SPEED_ATTR, SELECT_ATTR} & updates.get(self._poolObject.objnam, {}).keys()
+        )

@@ -4,6 +4,28 @@ Changes in briansteven/intellicenter since dwradcliffe/intellicenter v2.0.0.
 Versions 2.x are drop-in replacements for dwradcliffe's (with the water heater
 state change in 2.2.0); 3.0.0 makes this an independent version.
 
+## 3.3.0
+
+### Pump speeds
+
+Each speed the IntelliCenter keeps for a pump (one per circuit the pump runs
+for: "Pool", "Spa"...) is a setting on the pump's device, in RPM or GPM as set
+at the IntelliCenter, within the pump's limits. The pump runs at the highest
+speed of the circuits that are on. **These settings are disabled by default**:
+enable the ones you want to change from Home Assistant (Settings > Entities).
+
+### Equipment changes are picked up
+
+Equipment added or removed at the IntelliCenter, a circuit made featured (or
+no longer featured), and a heater or chlorinator assigned to other bodies used
+to need a reload of the integration to show in Home Assistant. The integration
+now notices (from the IntelliCenter's updates, a comparison of its equipment
+every 15 minutes, and after reconnecting) and reloads itself a minute later.
+Entities of removed equipment stay, unavailable, until you delete them.
+
+A body, pump, heater or chemistry controller renamed at the IntelliCenter
+renames its device in Home Assistant (unless you renamed it yourself).
+
 ## 3.2.0
 
 ### IntelliChem and IntelliChlor

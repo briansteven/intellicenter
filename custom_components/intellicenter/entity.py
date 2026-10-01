@@ -169,11 +169,14 @@ class PoolEntity(Entity):
         extraStateAttributes=None,
         icon: str | None = None,
         unit_of_measurement: str | None = None,
+        deviceObject: PoolObject | None = None,
     ):
         """Initialize a Pool entity.
 
         name: the entity's name, None for the name of its device, or (the
         default) None on a device of its own and the object's name otherwise.
+        deviceObject: the object whose device the entity belongs to, when not
+        its own (a pump's speed setting for a circuit belongs to the pump).
         """
         self._entry = entry
         self._entry_id = entry.entry_id
@@ -186,7 +189,8 @@ class PoolEntity(Entity):
         self._attr_native_unit_of_measurement = unit_of_measurement
         self._attr_icon = icon
 
-        self._ownDevice = poolObject.objtype in DEVICE_TYPES
+        deviceObject = deviceObject or poolObject
+        self._ownDevice = deviceObject.objtype in DEVICE_TYPES
         # an entity named after its object follows that object's name
         self._followsName = name is DEFAULT_NAME and not self._ownDevice
         if name is DEFAULT_NAME:
@@ -199,7 +203,9 @@ class PoolEntity(Entity):
 
         self._attr_device_info = (
             object_device_info(
-                entry, poolObject, getattr(entry.runtime_data, "system_device_id", None)
+                entry,
+                deviceObject,
+                getattr(entry.runtime_data, "system_device_id", None),
             )
             if self._ownDevice
             else DeviceInfo(identifiers={(DOMAIN, system_id(entry))})

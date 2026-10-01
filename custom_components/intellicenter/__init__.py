@@ -18,6 +18,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN, SETUP_TIMEOUT, connection_signal, update_signal
 from .entity import get_device, system_device_info, system_id
+from .equipment import EquipmentWatcher
 from .issues import HeaterAssignmentMonitor
 from .pyintellicenter import (
     ACT_ATTR,
@@ -36,17 +37,24 @@ from .pyintellicenter import (
     LISTORD_ATTR,
     LOTMP_ATTR,
     LSTTMP_ATTR,
+    MAX_ATTR,
+    MAXF_ATTR,
+    MIN_ATTR,
+    MINF_ATTR,
     MODE_ATTR,
     NORMAL_ATTR,
+    PMPCIRC_TYPE,
     POSIT_ATTR,
     PUMP_TYPE,
     PWR_ATTR,
     RPM_ATTR,
     SCHED_TYPE,
+    SELECT_ATTR,
     SENSE_TYPE,
     SERVICE_ATTR,
     SNAME_ATTR,
     SOURCE_ATTR,
+    SPEED_ATTR,
     STATUS_ATTR,
     SUBTYP_ATTR,
     SYSTEM_TYPE,
@@ -89,7 +97,18 @@ ATTRIBUTES_MAP = {
     CHEM_TYPE: set(),
     EXTINSTR_TYPE: {SNAME_ATTR, STATUS_ATTR, NORMAL_ATTR, POSIT_ATTR, BODY_ATTR},
     HEATER_TYPE: {SNAME_ATTR, BODY_ATTR, LISTORD_ATTR},
-    PUMP_TYPE: {SNAME_ATTR, STATUS_ATTR, PWR_ATTR, RPM_ATTR, GPM_ATTR},
+    PMPCIRC_TYPE: {CIRCUIT_ATTR, SPEED_ATTR, SELECT_ATTR},
+    PUMP_TYPE: {
+        SNAME_ATTR,
+        STATUS_ATTR,
+        PWR_ATTR,
+        RPM_ATTR,
+        GPM_ATTR,
+        MIN_ATTR,
+        MAX_ATTR,
+        MINF_ATTR,
+        MAXF_ATTR,
+    },
     SENSE_TYPE: {SNAME_ATTR, SOURCE_ATTR},
     SCHED_TYPE: {SNAME_ATTR, ACT_ATTR, VACFLO_ATTR},
     SYSTEM_TYPE: {MODE_ATTR, VACFLO_ATTR, SERVICE_ATTR},
@@ -111,6 +130,8 @@ class IntelliCenterHandler(ConnectionHandler):
         self._hass = hass
         self._entry_id = entry.entry_id
         self.monitor = HeaterAssignmentMonitor(hass, entry.entry_id, controller.model)
+        # follows equipment changes once the integration is set up
+        self.watcher: EquipmentWatcher | None = None
         # the registry ID of the IntelliCenter's device
         self.system_device_id: str | None = None
 
@@ -122,6 +143,11 @@ class IntelliCenterHandler(ConnectionHandler):
             self._hass, connection_signal(self._entry_id), True
         )
         self.monitor.async_check()
+        if self.watcher:
+            # the IntelliCenter may have restarted after its equipment changed
+            self._hass.async_create_background_task(
+                self.watcher.async_check(), "intellicenter equipment check"
+            )
 
     @callback
     def disconnected(self, controller, exc):
@@ -140,6 +166,15 @@ class IntelliCenterHandler(ConnectionHandler):
             self._hass, update_signal(self._entry_id), updates
         )
         self.monitor.async_check(updates)
+        if self.watcher:
+            self.watcher.async_updated(updates)
+
+    @callback
+    def stop_watching(self) -> None:
+        """Stop the heater and equipment checks."""
+        self.monitor.async_stop(clear_issues=False)
+        if self.watcher:
+            self.watcher.async_stop()
 
 
 # -------------------------------------------------------------------------------------
@@ -161,7 +196,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: IntelliCenterConfigEntry
         await _async_setup(hass, entry, handler)
     except BaseException:
         # nothing may keep running (or reconnecting) after a failed setup
-        handler.monitor.async_stop(clear_issues=False)
+        handler.stop_watching()
         handler.stop()
         raise
 
@@ -211,6 +246,8 @@ async def _async_setup(
     _async_place_new_devices(hass, entry, known_devices)
 
     handler.monitor.async_start()
+    handler.watcher = EquipmentWatcher(hass, entry, controller, set(ATTRIBUTES_MAP))
+    handler.watcher.async_start()
 
     @callback
     def on_hass_stop(event: Event) -> None:
@@ -230,6 +267,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: IntelliCenterConfigEntr
 
     handler = entry.runtime_data
     handler.monitor.async_stop()
+    if handler.watcher:
+        handler.watcher.async_stop()
     handler.stop()
     _LOGGER.info(f"disconnected from {handler.controller.host}")
 

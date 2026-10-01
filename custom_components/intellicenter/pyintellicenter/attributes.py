@@ -17,6 +17,11 @@ SENSE_TYPE = "SENSE"
 SYSTEM_TYPE = "SYSTEM"
 
 ACT_ATTR = "ACT"
+MAX_ATTR = "MAX"
+MAXF_ATTR = "MAXF"
+MIN_ATTR = "MIN"
+MINF_ATTR = "MINF"
+SPEED_ATTR = "SPEED"
 ALK_ATTR = "ALK"
 CALC_ATTR = "CALC"
 CYACID_ATTR = "CYACID"
@@ -283,10 +288,10 @@ PERMIT_ATTRIBUTES = {
 PMPCIRC_ATTRIBUTES = {
     BODY_ATTR,  # not sure, I've only see '00000'
     CIRCUIT_ATTR,  # (objnam) the circuit this setting is for
-    GPM_ATTR,  # (int): the flow setting for the pump if select is GPM
+    GPM_ATTR,  # (int): ?? (SPEED holds the setting, in RPM or GPM)
     LISTORD_ATTR,  # (int) used to order in UI
     PARENT_ATTR,  # (objnam) the pump the setting belongs to
-    "SPEED",  # (int): the speed setting for the pump if select is RPM
+    SPEED_ATTR,  # (int): the pump's speed for the circuit, in SELECT units
     SELECT_ATTR,  # 'RPM' or 'GPM'
 }
 
@@ -306,10 +311,10 @@ PUMP_ATTRIBUTES = {
     HNAME_ATTR,  # same as objnam
     GPM_ATTR,  # (int) when applicable, real time Gallon Per Minute
     LISTORD_ATTR,  # (int) used to order in UI
-    "MAX",  # (int) maximum RPM
-    "MAXF",  # (int) maximum GPM (if applicable, 0 otherwise)
-    "MIN",  # (int) minimum RPM
-    "MINF",  # (int) minimum GPM (if applicable, 0 otherwise)
+    MAX_ATTR,  # (int) maximum RPM
+    MAXF_ATTR,  # (int) maximum GPM (if applicable, 0 otherwise)
+    MIN_ATTR,  # (int) minimum RPM
+    MINF_ATTR,  # (int) minimum GPM (if applicable, 0 otherwise)
     "NAME",  # seems to equal OBJNAM
     "OBJLIST",  # ([ objnam] ) a list of PMPCIRC settings
     "PRIMFLO",  # (int) Priming Speed
@@ -317,7 +322,7 @@ PUMP_ATTRIBUTES = {
     "PRIOR",  # (int) ???
     PWR_ATTR,  # (int) when applicable, real time Power usage in Watts
     RPM_ATTR,  # (int) when applicable, real time Rotation Per Minute
-    "SETTMP",  # (int) Step size for RPM
+    "SETTMP",  # (int) step of the "pump speed +/-" circuits (100 RPM seen)
     "SETTMPNC",  # (int) ???
     SNAME_ATTR,  # friendly name
     STATUS_ATTR,  # only seen 10 for on, 4 for off

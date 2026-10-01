@@ -2,6 +2,11 @@
 
 from .attributes import (
     ACT_ATTR,
+    MAX_ATTR,
+    MAXF_ATTR,
+    MIN_ATTR,
+    MINF_ATTR,
+    SPEED_ATTR,
     ALK_ATTR,
     CALC_ATTR,
     CYACID_ATTR,
@@ -109,6 +114,11 @@ __all__ = [
     SYSTEM_TYPE,
     NULL_OBJNAM,
     ACT_ATTR,
+    MAX_ATTR,
+    MAXF_ATTR,
+    MIN_ATTR,
+    MINF_ATTR,
+    SPEED_ATTR,
     ALK_ATTR,
     CALC_ATTR,
     CYACID_ATTR,

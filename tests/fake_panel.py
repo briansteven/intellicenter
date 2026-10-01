@@ -115,6 +115,25 @@ DEFAULT_OBJECTS = {
         "RPM": "3000",
         "PWR": "1349",
         "GPM": "62",
+        "MIN": "450",
+        "MAX": "3450",
+        "MINF": "20",
+        "MAXF": "140",
+    },
+    # the pump's speed for each circuit it runs for
+    "p0101": {
+        "OBJTYP": "PMPCIRC",
+        "PARENT": "PMP01",
+        "CIRCUIT": "C0006",
+        "SPEED": "3000",
+        "SELECT": "RPM",
+    },
+    "p0102": {
+        "OBJTYP": "PMPCIRC",
+        "PARENT": "PMP01",
+        "CIRCUIT": "C0001",
+        "SPEED": "50",
+        "SELECT": "GPM",
     },
     "CHM01": {
         "OBJTYP": "CHEM",

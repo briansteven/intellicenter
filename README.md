@@ -92,8 +92,9 @@ you move it.
 - **Each heater**: a sensor that is on while it heats (or, for a heat pump,
   cools) any body.
 - **Each pump**: a sensor that is on while it runs (from its speed, power or flow
-  when it reports them, from its status otherwise), and its power (rounded to
-  25 W), speed and flow when it reports them.
+  when it reports them, from its status otherwise), its power (rounded to 25 W),
+  speed and flow when it reports them, and its speed setting for each circuit
+  it runs for (disabled by default).
 - **IntelliChlor**: salt level, superchlorinate switch and duration, and the
   output setting for each body it serves.
 - **IntelliChem**: pH, ORP, saturation index, the levels of both tanks (0 to 6,
@@ -130,9 +131,10 @@ off up to every 5 minutes) until the panel is back.
 - **Setup keeps retrying.** Home Assistant can't reach the IntelliCenter at the
   address it has: check the address (Reconfigure changes it) and that nothing
   blocks port 6681.
-- **Changes to the pool's configuration** (new equipment, renamed bodies) are
-  picked up when the integration is reloaded. Circuits renamed at the
-  IntelliCenter are renamed in Home Assistant right away.
+- **Changes to the pool's configuration** (equipment added or removed, featured
+  circuits, heater assignments) are picked up by a reload the integration does
+  by itself, within about 15 minutes; reload it yourself to see them sooner.
+  Renamed circuits and equipment are renamed in Home Assistant right away.
 - Changing the IntelliCenter between metric and English units while the
   integration runs can leave some values off until it is reloaded.
 
