@@ -94,10 +94,12 @@ you move it.
 - **Each pump**: a sensor that is on while it runs (from its speed, power or flow
   when it reports them, from its status otherwise), and its power (rounded to
   25 W), speed and flow when it reports them.
-- **IntelliChlor**: salt level, superchlorinate switch, and the output setting
-  for each body it serves.
-- **IntelliChem**: pH, ORP, water quality (saturation index) and the levels of
-  both tanks (0 to 6, as the IntelliChem shows them).
+- **IntelliChlor**: salt level, superchlorinate switch and duration, and the
+  output setting for each body it serves.
+- **IntelliChem**: pH, ORP, saturation index, the levels of both tanks (0 to 6,
+  as the IntelliChem shows them), how much chemical it has fed, its pH and ORP
+  alarms, and its settings: pH and ORP targets, and the alkalinity, calcium
+  hardness and cyanuric acid values the saturation index is computed from.
 - **Lights and light shows**: on/off, with color effects for IntelliBrite,
   MagicStream and GloBrite lights.
 - **Featured circuits and circuit groups** (for example "Cleaner" or "Spa

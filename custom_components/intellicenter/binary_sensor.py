@@ -14,11 +14,16 @@ from .entity import PoolEntity
 from .pyintellicenter import (
     ACT_ATTR,
     BODY_TYPE,
+    CHEM_TYPE,
     CIRCUIT_TYPE,
     GPM_ATTR,
     HEATER_ATTR,
     HEATER_TYPE,
     HTMODE_ATTR,
+    ORPHI_ATTR,
+    ORPLO_ATTR,
+    PHHI_ATTR,
+    PHLO_ATTR,
     PUMP_TYPE,
     PWR_ATTR,
     RPM_ATTR,
@@ -32,6 +37,14 @@ from .pyintellicenter import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# IntelliChem alarms (their thresholds and delays are set on the IntelliChem)
+INTELLICHEM_ALARMS = {
+    PHHI_ATTR: "pH high alarm",
+    PHLO_ATTR: "pH low alarm",
+    ORPHI_ATTR: "ORP high alarm",
+    ORPLO_ATTR: "ORP low alarm",
+}
 
 
 async def async_setup_entry(
@@ -65,6 +78,10 @@ async def async_setup_entry(
             sensors.append(PumpBinarySensor(entry, controller, obj))
         elif obj.objtype == SYSTEM_TYPE and obj[SERVICE_ATTR]:
             sensors.append(ServiceMode(entry, controller, obj))
+        elif obj.objtype == CHEM_TYPE and obj.subtype == "ICHEM":
+            for attr, name in INTELLICHEM_ALARMS.items():
+                if attr in obj.attributes:
+                    sensors.append(ChemistryAlarm(entry, controller, obj, attr, name))
     async_add_entities(sensors)
 
 
@@ -99,6 +116,19 @@ class FreezeProtection(PoolBinarySensor):
     """On while the IntelliCenter protects the equipment from freezing."""
 
     _attr_device_class = BinarySensorDeviceClass.COLD
+
+
+class ChemistryAlarm(PoolBinarySensor):
+    """An IntelliChem alarm, on while it is raised."""
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, entry, controller, poolObject, attribute_key, name):
+        """Initialize."""
+        super().__init__(
+            entry, controller, poolObject, attribute_key=attribute_key, name=name
+        )
 
 
 class ServiceMode(PoolBinarySensor):

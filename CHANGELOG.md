@@ -4,6 +4,30 @@ Changes in briansteven/intellicenter since dwradcliffe/intellicenter v2.0.0.
 Versions 2.x are drop-in replacements for dwradcliffe's (with the water heater
 state change in 2.2.0); 3.0.0 makes this an independent version.
 
+## 3.2.0
+
+### IntelliChem and IntelliChlor
+
+New, on the IntelliChem's device (when the IntelliCenter reports them):
+
+- **Settings**: pH target (7.0 to 7.8), ORP target (400 to 800 mV), and the water
+  test values the IntelliChem computes the saturation index from: total
+  alkalinity, calcium hardness and cyanuric acid. A value the IntelliChem
+  refuses shows an error.
+- **Alarms**: pH high, pH low, ORP high and ORP low, as problem sensors (their
+  thresholds and delays are set on the IntelliChem).
+- **Feed totals**: how much pH and ORP chemical the IntelliChem has fed, as
+  running totals (shown in fl. oz. or mL, following Home Assistant's units), so
+  statistics can show how much is used per day or week.
+
+And on the IntelliChlor's device: **Superchlorinate duration** (1 to 96 hours).
+
+### Changed
+
+- The IntelliChem's "Water quality" sensor is now named **Saturation index**,
+  which is what it is (the Langelier index the IntelliChem shows, balanced
+  between -0.5 and +0.5). Its entity ID doesn't change.
+
 ## 3.1.0
 
 ### Failed commands are reported

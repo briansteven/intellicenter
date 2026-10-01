@@ -13,6 +13,7 @@ from homeassistant.const import (
     REVOLUTIONS_PER_MINUTE,
     UnitOfElectricPotential,
     UnitOfPower,
+    UnitOfVolume,
     UnitOfVolumeFlowRate,
 )
 from homeassistant.core import HomeAssistant
@@ -35,8 +36,10 @@ from .pyintellicenter import (
     LSTTMP_ATTR,
     ORPTNK_ATTR,
     ORPVAL_ATTR,
+    ORPVOL_ATTR,
     PHTNK_ATTR,
     PHVAL_ATTR,
+    PHVOL_ATTR,
     PUMP_TYPE,
     PWR_ATTR,
     QUALTY_ATTR,
@@ -126,7 +129,23 @@ async def async_setup_entry(
                         name="ORP",
                     )
                 if QUALTY_ATTR in obj.attributes:
-                    add(obj, attribute_key=QUALTY_ATTR, name="Water quality")
+                    # the Langelier saturation index the IntelliChem computes
+                    # (balanced between -0.5 and +0.5)
+                    add(
+                        obj,
+                        attribute_key=QUALTY_ATTR,
+                        name="Saturation index",
+                        icon="mdi:scale-balance",
+                    )
+                for attr, name in ((PHVOL_ATTR, "pH feed total"), (ORPVOL_ATTR, "ORP feed total")):
+                    if attr in obj.attributes:
+                        # chemical fed by the IntelliChem since its counter was reset
+                        add(
+                            obj,
+                            FeedTotalSensor,
+                            attribute_key=attr,
+                            name=name,
+                        )
                 if PHTNK_ATTR in obj.attributes:
                     add(
                         obj,
@@ -208,6 +227,24 @@ class PoolSensor(PoolEntity, SensorEntity):
         if self._attr_device_class == SensorDeviceClass.TEMPERATURE:
             return self.pentairTemperatureSettings()
         return self._attr_native_unit_of_measurement
+
+
+class FeedTotalSensor(PoolSensor):
+    """The volume of a chemical the IntelliChem has fed (a running total)."""
+
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    # whole mL or fl. oz. (Home Assistant converts to the user's units)
+    _attr_suggested_display_precision = 0
+
+    def __init__(self, *args, **kwargs):
+        """Initialize."""
+        super().__init__(
+            *args,
+            device_class=SensorDeviceClass.VOLUME,
+            unit_of_measurement=UnitOfVolume.MILLILITERS,
+            icon="mdi:beaker-outline",
+            **kwargs,
+        )
 
 
 class TankLevelSensor(PoolSensor):

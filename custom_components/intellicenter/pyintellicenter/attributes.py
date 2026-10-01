@@ -17,6 +17,17 @@ SENSE_TYPE = "SENSE"
 SYSTEM_TYPE = "SYSTEM"
 
 ACT_ATTR = "ACT"
+ALK_ATTR = "ALK"
+CALC_ATTR = "CALC"
+CYACID_ATTR = "CYACID"
+ORPHI_ATTR = "ORPHI"
+ORPLO_ATTR = "ORPLO"
+ORPSET_ATTR = "ORPSET"
+ORPVOL_ATTR = "ORPVOL"
+PHHI_ATTR = "PHHI"
+PHLO_ATTR = "PHLO"
+PHSET_ATTR = "PHSET"
+PHVOL_ATTR = "PHVOL"
 BODY_ATTR = "BODY"
 CIRCUIT_ATTR = "CIRCUIT"
 COMUART_ATTR = "COMUART"
@@ -121,33 +132,35 @@ BODY_ATTRIBUTES = {
 }
 
 CHEM_ATTRIBUTES = {
-    "ALK",  # (int) IntelliChem: Alkalinity setting
+    ALK_ATTR,  # (int) IntelliChem: total alkalinity (ppm), entered from a water test
     BODY_ATTR,  # (objnam) BODY being managed
-    "CALC",  # (int) IntelliChem: Calcium Harness setting
+    CALC_ATTR,  # (int) IntelliChem: calcium hardness (ppm), entered from a water test
     "CHLOR",  # (ON/OFF) IntelliChem: ??
     COMUART_ATTR,  # (int) X25 related ?
-    "CYACID",  # (int) IntelliChem: Cyanuric Acid setting
+    CYACID_ATTR,  # (int) IntelliChem: cyanuric acid (ppm), entered from a water test
     LISTORD_ATTR,  # (int) used to order in UI
-    "ORPHI",  # (ON/OFF) IntelliChem: ORP Level too high?
-    "ORPLO",  # (ON/OFF) IntelliChem: ORP Level too low?
-    "ORPSET",  # (int) IntelliChem ORP level setting
-    ORPTNK_ATTR,  # (int) IntelliChem: ORP Tank Level
+    ORPHI_ATTR,  # (ON/OFF) IntelliChem: ORP high alarm
+    ORPLO_ATTR,  # (ON/OFF) IntelliChem: ORP low alarm
+    ORPSET_ATTR,  # (int) IntelliChem ORP setpoint (mV, 400-800)
+    ORPTNK_ATTR,  # (int) IntelliChem: ORP tank level (1-7 for the 0-6 displayed)
     ORPVAL_ATTR,  # (int) IntelliChem: ORP Level
-    "PHHI",  # (ON/OFF) IntelliChem: Ph Level too low?
-    "PHLO",  # (ON/OFF) IntelliChem: Ph Level too low?
-    "PHSET",  # (float) IntelliChem Ph level setting
-    PHTNK_ATTR,  # (int) IntelliChem: Ph Tank Level
+    ORPVOL_ATTR,  # (int) IntelliChem: ORP chemical fed (mL, cumulative)
+    PHHI_ATTR,  # (ON/OFF) IntelliChem: pH high alarm
+    PHLO_ATTR,  # (ON/OFF) IntelliChem: pH low alarm
+    PHSET_ATTR,  # (float) IntelliChem pH setpoint
+    PHTNK_ATTR,  # (int) IntelliChem: pH tank level (1-7 for the 0-6 displayed)
     PHVAL_ATTR,  # (float) IntelliChem: Ph Level
+    PHVOL_ATTR,  # (int) IntelliChem: pH chemical fed (mL, cumulative)
     PRIM_ATTR,  # (int) IntelliChlor: primary body output setting in %
-    QUALTY_ATTR,  # (float) IntelliChem: Water Quality (Saturation Index)
+    QUALTY_ATTR,  # (float) IntelliChem: saturation index (Langelier)
     SALT_ATTR,  # (int) Salt level
     SEC_ATTR,  # (int) IntelliChlor: secondary body output setting in %
     "SHARE",  # (objnam) ??
-    "SINDEX",  # (int) ??
+    "SINDEX",  # (float) ?? (not the saturation index: about 2.5 on a balanced pool)
     SNAME_ATTR,  # friendly name
     SUBTYP_ATTR,  # 'ICHLOR' for IntelliChlor, 'ICHEM' for IntelliChem
     SUPER_ATTR,  # (ON/OFF) IntelliChlor: turn on Boost mode (aka Super Chlorinate)
-    TIMOUT_ATTR,  # (int) IntelliChlor: in seconds ??
+    TIMOUT_ATTR,  # (int) IntelliChlor: superchlorinate duration in seconds
 }
 
 CIRCGRP_ATTRIBUTES = {
