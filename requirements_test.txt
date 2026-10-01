@@ -1,0 +1,2 @@
+# Protocol level tests (tests/), no Home Assistant needed
+pytest

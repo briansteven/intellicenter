@@ -1,0 +1,3 @@
+# Home Assistant level tests (tests_ha/). Keep in step with the Home Assistant
+# version you test against: pytest-homeassistant-custom-component pins it.
+pytest-homeassistant-custom-component==0.13.367  # homeassistant==2026.9.4
