@@ -225,7 +225,7 @@ class PoolEntity(Entity):
         attribute_key=STATUS_ATTR,
         name=None,
         enabled_by_default=True,
-        extraStateAttributes=set(),
+        extraStateAttributes=None,
         icon: str = None,
         unit_of_measurement: str = None,
     ):
@@ -234,7 +234,7 @@ class PoolEntity(Entity):
         self._controller = controller
         self._poolObject = poolObject
         self._attr_available = True
-        self._extra_state_attributes = extraStateAttributes
+        self._extra_state_attributes = extraStateAttributes or set()
         self._attr_name = name
         self._attribute_key = attribute_key
         self._attr_entity_registry_enabled_default = enabled_by_default

@@ -1,6 +1,5 @@
 """Pentair Intellicenter lights."""
 
-from functools import reduce
 import logging
 from typing import Any
 
@@ -62,10 +61,14 @@ async def async_setup_entry(
                 )
             )
         elif obj.isALightShow:
-            supportColorEffects = reduce(
-                lambda x, y: x and y,
-                (controller.model[obj[CIRCUIT_ATTR]].supportColorEffects for obj in controller.model.getChildren(obj)),
-                True,
+            # a light show supports color effects if all its lights do
+            # (a member missing from the model doesn't)
+            supportColorEffects = all(
+                member is not None and member.supportColorEffects
+                for member in (
+                    controller.model[child[CIRCUIT_ATTR]]
+                    for child in controller.model.getChildren(obj)
+                )
             )
             lights.append(
                 PoolLight(

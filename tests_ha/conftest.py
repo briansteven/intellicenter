@@ -38,9 +38,15 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 
 
 @pytest.fixture
-async def panel(socket_enabled):
+def panel_objects():
+    """Object model served by the fake panel (None: the default one)."""
+    return None
+
+
+@pytest.fixture
+async def panel(socket_enabled, panel_objects):
     """Run a fake IntelliCenter on a random local port."""
-    fake = FakePanel()
+    fake = FakePanel(panel_objects)
     await fake.start()
     yield fake
     await fake.close()

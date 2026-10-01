@@ -45,7 +45,7 @@ async def async_setup_entry(
             and obj.subtype == "ICHLOR"
             and PRIM_ATTR in obj.attributes
         ):
-            intellichlor_bodies = obj[BODY_ATTR].split(" ")
+            intellichlor_bodies = (obj[BODY_ATTR] or "").split()
             
             # Only create number entities for bodies that are actually configured
             for index, body_id in enumerate(intellichlor_bodies):
