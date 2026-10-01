@@ -21,9 +21,10 @@ focuses on reliability:
 - **Commands no longer stop working.** Commands were written to the connection
   from a background thread, which could wedge the request queue so that switches,
   lights and heater settings silently stopped reaching the panel.
-- **Shared pool/spa equipment.** A heater shared by the pool and the spa now gets
-  a water heater entity for both bodies, and its binary sensor reports heating for
-  either one.
+- **Explains a heater that will never heat.** If the pool or spa has a heater
+  selected that isn't assigned to it in the IntelliCenter's heater settings, the
+  IntelliCenter never heats it: the pump runs and the water stays cold. Home
+  Assistant now shows a repair saying so and how to fix it.
 - Messages split across network packets are processed right away, reconnection
   survives drops during the initial handshake, values the panel reports as
   undefined are no longer shown as if they were real, sensors report numbers
@@ -83,8 +84,10 @@ Assistant.
           binary sensor, below)
         Note that the water heater supports turn_on and turn_off operations.
         for turn_on, it will reuse the last heater chosen.
-      A heater shared by the pool and the spa (shared equipment) appears in
-      the water heater of both bodies.
+      A heater assigned to both the pool and the spa (shared equipment) appears
+      in the water heater of both bodies. If a body has a heater selected that
+      isn't assigned to it, the IntelliCenter won't heat it; a repair issue
+      (Settings > Repairs) explains how to fix that in the heater settings.
 - for each heater, a binary sensor will indicate is the heater is running
   independently of which body is heating
 - creates a switch for all circuits marked as "Featured" on the IntelliCenter

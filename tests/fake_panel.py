@@ -21,7 +21,8 @@ import json
 import uuid
 
 # Modeled on a real pool + spa system with shared equipment (IC 1.064):
-# one gas heater whose BODY lists only the pool, flagged SHARE=SHARE.
+# one gas heater assigned to both bodies. (Like every attribute an object
+# doesn't have, a heater's SHARE is echoed back as "SHARE": undefined.)
 DEFAULT_OBJECTS = {
     "_5451": {
         "OBJTYP": "SYSTEM",
@@ -64,8 +65,7 @@ DEFAULT_OBJECTS = {
         "SUBTYP": "GENERIC",
         "SNAME": "Gas Heater",
         "PARENT": "M0101",
-        "BODY": "B1101",
-        "SHARE": "SHARE",
+        "BODY": "B1101 B1202",
         "LISTORD": "1",
     },
     "C0006": {

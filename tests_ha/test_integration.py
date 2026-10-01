@@ -24,11 +24,7 @@ async def test_entities_are_created(hass: HomeAssistant, integration) -> None:
 async def test_shared_heater_creates_both_water_heaters(
     hass: HomeAssistant, integration
 ) -> None:
-    """A heater shared by pool and spa yields a water heater for each body.
-
-    The panel lists only the pool in the heater's BODY attribute and flags the
-    heater SHARE=SHARE; the spa names the pool as its SHARE partner.
-    """
+    """A heater assigned to both the pool and the spa: a water heater for each."""
     registry = er.async_get(hass)
     for body in ("B1101", "B1202"):
         unique_id = f"{integration.entry_id}{body}LOTMP"

@@ -12,7 +12,6 @@ from .attributes import (
     OBJTYP_ATTR,
     PARENT_ATTR,
     PROPNAME_ATTR,
-    SHARE_ATTR,
     SNAME_ATTR,
     SUBTYP_ATTR,
     SYSTEM_TYPE,
@@ -89,10 +88,9 @@ class SystemInfo:
 # -------------------------------------------------------------------------------------
 
 
-# attributes which must survive pruning even when the value echoes the key:
-# - OBJTYP identifies an object rather than describes it
-# - a heater shared by the pool and the spa reports SHARE="SHARE" as a real value
-PRESERVED_ATTRIBUTES = {OBJTYP_ATTR, SHARE_ATTR}
+# attributes which identify an object rather than describe it:
+# they must survive pruning even when the system reports them as undefined
+PRESERVED_ATTRIBUTES = {OBJTYP_ATTR}
 
 
 def prune(obj):

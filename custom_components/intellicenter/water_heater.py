@@ -20,12 +20,10 @@ from .pyintellicenter import (
     HEATER_ATTR,
     HEATER_TYPE,
     HTMODE_ATTR,
-    HTSRC_ATTR,
     LISTORD_ATTR,
     LOTMP_ATTR,
     LSTTMP_ATTR,
     NULL_OBJNAM,
-    SHARE_ATTR,
     STATUS_ATTR,
     ModelController,
     PoolObject,
@@ -34,24 +32,17 @@ from .pyintellicenter import (
 # from homeassistant.components.climate.const import CURRENT_HVAC_OFF, CURRENT_HVAC_HEAT, CURRENT_HVAC_IDLE
 _LOGGER = logging.getLogger(__name__)
 
-SHARED_HEATER = "SHARE"
-
 
 def heater_serves_body(heater: PoolObject, body: PoolObject) -> bool:
-    """Return True if the heater can heat the given body of water.
+    """Return True if the heater is assigned to the given body of water.
 
-    The heater's BODY attribute lists the bodies it serves, but on shared
-    pool/spa equipment IntelliCenter may list only one of them and flag the
-    heater with SHARE='SHARE'. In that case the other body names its partner
-    in its own SHARE attribute. A body whose heat source is this heater is
-    also served by it.
+    The heater's BODY attribute lists, space separated, the bodies the
+    IntelliCenter lets it heat (both the pool and the spa for a heater shared
+    by them). Only those bodies are heated: a body can keep a heater selected
+    after the heater was unassigned from it, and the IntelliCenter then doesn't
+    heat it (see issues.async_check_heater_assignments).
     """
-    heater_bodies = (heater[BODY_ATTR] or "").split()
-    if body.objnam in heater_bodies:
-        return True
-    if heater[SHARE_ATTR] == SHARED_HEATER and body[SHARE_ATTR] in heater_bodies:
-        return True
-    return heater.objnam in (body[HEATER_ATTR], body[HTSRC_ATTR])
+    return body.objnam in (heater[BODY_ATTR] or "").split()
 
 
 async def async_setup_entry(

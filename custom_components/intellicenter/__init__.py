@@ -20,6 +20,7 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
+from .issues import async_check_heater_assignments, async_clear_issues
 from .pyintellicenter import (
     ACT_ATTR,
     BODY_ATTR,
@@ -33,7 +34,6 @@ from .pyintellicenter import (
     HEATER_ATTR,
     HEATER_TYPE,
     HTMODE_ATTR,
-    HTSRC_ATTR,
     LISTORD_ATTR,
     LOTMP_ATTR,
     LSTTMP_ATTR,
@@ -43,7 +43,6 @@ from .pyintellicenter import (
     RPM_ATTR,
     SCHED_TYPE,
     SENSE_TYPE,
-    SHARE_ATTR,
     SNAME_ATTR,
     SOURCE_ATTR,
     STATUS_ATTR,
@@ -89,17 +88,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             SNAME_ATTR,
             HEATER_ATTR,
             HTMODE_ATTR,
-            HTSRC_ATTR,
             LOTMP_ATTR,
             LSTTMP_ATTR,
-            SHARE_ATTR,
             STATUS_ATTR,
             VOL_ATTR,
         },
         CIRCUIT_TYPE: {SNAME_ATTR, STATUS_ATTR, USE_ATTR, SUBTYP_ATTR, FEATR_ATTR},
         CIRCGRP_TYPE: {CIRCUIT_ATTR},
         CHEM_TYPE: {},
-        HEATER_TYPE: {SNAME_ATTR, BODY_ATTR, LISTORD_ATTR, SHARE_ATTR},
+        HEATER_TYPE: {SNAME_ATTR, BODY_ATTR, LISTORD_ATTR},
         PUMP_TYPE: {SNAME_ATTR, STATUS_ATTR, PWR_ATTR, RPM_ATTR, GPM_ATTR},
         SENSE_TYPE: {SNAME_ATTR, SOURCE_ATTR},
         SCHED_TYPE: {SNAME_ATTR, ACT_ATTR, VACFLO_ATTR},
@@ -123,6 +120,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             for object in controller.model:
                 _LOGGER.debug(f"   loaded {object}")
+
+            async_check_heater_assignments(hass, entry.entry_id, controller.model)
 
             async def setup_platforms():
                 """Set up platforms."""
@@ -156,6 +155,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             """Handle updates from the Pentair system."""
             _LOGGER.debug(f"received update for {len(updates)} pool objects")
             dispatcher.async_dispatcher_send(hass, self.UPDATE_SIGNAL, updates)
+
+            # a heater was assigned to or removed from a body, or a body's
+            # heat source changed
+            if any(
+                HEATER_ATTR in changes or BODY_ATTR in changes
+                for changes in updates.values()
+            ):
+                async_check_heater_assignments(hass, entry.entry_id, controller.model)
 
     try:
 
@@ -199,6 +206,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Cleanup
     hass.data[DOMAIN].pop(entry.entry_id, None)
+    if handler:
+        async_clear_issues(hass, entry.entry_id, handler.controller.model)
 
     _LOGGER.info(f"unloading integration {entry.entry_id}")
     if handler:

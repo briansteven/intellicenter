@@ -5,6 +5,26 @@ v2.0.0. Upgrading from any of these versions is a drop-in replacement: no
 configuration changes, and entities keep their IDs. The one deliberate exception
 is the water heater state in 2.2.0.
 
+## 2.2.1
+
+### Fixed: heaters belong to the bodies they're assigned to
+
+Since 2.0.2, a body also got a water heater for a heater that isn't assigned to
+it, when the body still had that heater selected or the heater looked "shared".
+That was a mistake: `SHARE="SHARE"` is only how the IntelliCenter reports an
+attribute an object doesn't have, and the IntelliCenter doesn't heat a body with
+a heater that isn't assigned to it. The water heater looked usable while the
+pump ran and the water stayed cold. A heater now serves exactly the bodies its
+settings assign it to (its `BODY`), as in dwradcliffe/intellicenter.
+
+- **New repair issue** when a body has a heater selected that isn't assigned to
+  it: it explains that the IntelliCenter won't heat that body and how to fix it
+  in the heater settings (Pentair app or panel), and clears itself once the
+  heater is assigned.
+
+If your spa or pool water heater disappears after updating, this is why: see
+Settings > Repairs.
+
 ## 2.2.0
 
 ### Breaking change: a water heater's state is its operation mode
@@ -59,9 +79,9 @@ For example, a notification template that said
 
 ### Entities
 
-- **Shared heaters report heating for either body.** The heater binary sensor
-  only looked at the bodies in the heater's BODY attribute, so it stayed off
-  while a shared heater heated the spa.
+- The heater binary sensor reports heating for any body that uses the heater.
+  (This entry used to say it stayed off while a shared heater heated the spa;
+  that was the misreading corrected in 2.2.1.)
 - **Sensors report numbers** instead of text, so temperatures are converted
   between °F and °C and display precision can be set; numbers and water heaters
   cope with missing values (dwradcliffe/intellicenter#45 by @gmisner).
@@ -111,9 +131,10 @@ For example, a notification template that said
 
 ## 2.0.2
 
-- **Water heaters for both bodies on shared pool/spa equipment.** IntelliCenter
-  can list only one body on a shared heater (BODY="B1101", SHARE="SHARE"), which
-  made the spa's water heater disappear after a restart.
+- Water heaters for bodies listed with a "shared" heater. **This was wrong and
+  is reverted in 2.2.1**: the spa's water heater had disappeared because its
+  heater was no longer assigned to the spa in the IntelliCenter settings, so the
+  IntelliCenter wasn't going to heat it.
 
 ## 2.0.1
 
