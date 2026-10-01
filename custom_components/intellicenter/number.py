@@ -95,9 +95,11 @@ class PoolNumber(PoolEntity, NumberEntity):
         if value is None or value == "":
             return None
         try:
-            return float(value)
+            number = float(value)
         except (TypeError, ValueError):
             return None
+        # keep whole numbers whole ("25", not "25.0"), as the system reports them
+        return int(number) if number.is_integer() else number
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
