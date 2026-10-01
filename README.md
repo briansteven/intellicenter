@@ -98,8 +98,7 @@ you move it.
 - **IntelliChlor**: salt level, superchlorinate switch and duration, and the
   output setting for each body it serves.
 - **IntelliChem**: pH, ORP, saturation index, the levels of both tanks (0 to 6,
-  as the IntelliChem shows them), how much chemical it has fed, its pH and ORP
-  alarms, and its settings: pH and ORP targets, and the alkalinity, calcium
+  as the IntelliChem shows them), its pH and ORP alarms, and its settings: pH and ORP targets, and the alkalinity, calcium
   hardness and cyanuric acid values the saturation index is computed from.
 - **Lights and light shows**: on/off, with color effects for IntelliBrite,
   MagicStream and GloBrite lights.

@@ -1,4 +1,4 @@
-"""IntelliChem and IntelliChlor settings, alarms and totals."""
+"""IntelliChem and IntelliChlor settings, alarms and values."""
 
 import pytest
 
@@ -78,19 +78,56 @@ async def test_alarms(
     await wait_for(lambda: hass.states.get(entity_id).state == "on")
 
 
-async def test_feed_totals_and_saturation_index(
-    hass: HomeAssistant, integration, panel
-) -> None:
-    """Chemical fed is a growing volume; the saturation index is named as such."""
-    fed = hass.states.get("sensor.intellichem_1_ph_feed_total")
-    assert fed.attributes["device_class"] == "volume"
-    assert fed.attributes["state_class"] == "total_increasing"
-    assert float(fed.state) > 0
-    assert hass.states.get("sensor.intellichem_1_orp_feed_total") is not None
+async def test_saturation_index(hass: HomeAssistant, integration, panel) -> None:
+    """The saturation index is named as such; PHVOL/ORPVOL get no sensor.
 
+    PHVOL and ORPVOL restart at every dose (seen on a real IntelliChem), so
+    they aren't the running totals 3.2.0 to 3.4.0 showed them as.
+    """
     index = hass.states.get("sensor.intellichem_1_saturation_index")
     assert index.state == "-0.1"
     assert index.attributes["friendly_name"] == "IntelliChem 1 Saturation index"
+
+    unique_ids = {
+        e.unique_id
+        for e in er.async_entries_for_config_entry(
+            er.async_get(hass), integration.entry_id
+        )
+    }
+    assert "test-unique-idCHM01PHVOL" not in unique_ids
+    assert "test-unique-idCHM01ORPVOL" not in unique_ids
+
+
+async def test_feed_totals_of_earlier_versions_are_removed(
+    hass: HomeAssistant, config_entry, use_panel
+) -> None:
+    """The feed total sensors of 3.2.0 to 3.4.0 are removed at setup."""
+    from custom_components.intellicenter.const import DOMAIN
+
+    registry = er.async_get(hass)
+    kept = registry.async_get_or_create(
+        "sensor", DOMAIN, "test-unique-idCHM01PHVAL", config_entry=config_entry,
+        suggested_object_id="intellichem_1_ph",
+    ).entity_id
+    retired = [
+        registry.async_get_or_create(
+            "sensor", DOMAIN, f"test-unique-idCHM01{attribute}",
+            config_entry=config_entry, suggested_object_id=object_id,
+        ).entity_id
+        for attribute, object_id in (
+            ("PHVOL", "intellichem_1_ph_feed_total"),
+            ("ORPVOL", "intellichem_1_orp_feed_total"),
+        )
+    ]
+
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    for entity_id in retired:
+        assert registry.async_get(entity_id) is None, entity_id
+        assert hass.states.get(entity_id) is None
+    assert hass.states.get(kept).state == "7.4"
+    assert await hass.config_entries.async_unload(config_entry.entry_id)
 
 
 async def test_refused_setting_is_reported(

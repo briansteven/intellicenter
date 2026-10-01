@@ -4,6 +4,19 @@ Changes in briansteven/intellicenter since dwradcliffe/intellicenter v2.0.0.
 Versions 2.x are drop-in replacements for dwradcliffe's (with the water heater
 state change in 2.2.0); 3.0.0 makes this an independent version.
 
+## 3.4.1
+
+### Feed totals removed
+
+The "pH feed total" and "ORP feed total" sensors added in 3.2.0 were wrong: on
+a real IntelliChem the value they show restarts at every dose (every 20
+minutes or so while it doses), so it isn't how much chemical has been fed, and
+its unit isn't known for sure either. Home Assistant took each restart for a
+new meter, so their statistics add up to nonsense. Both sensors are removed
+(the integration deletes them when it starts). Their long-term statistics stay
+until you delete them: Developer tools > Statistics lists them as no longer
+provided, with a button to delete them.
+
 ## 3.4.0
 
 ### Egg timers
@@ -53,7 +66,8 @@ New, on the IntelliChem's device (when the IntelliCenter reports them):
   thresholds and delays are set on the IntelliChem).
 - **Feed totals**: how much pH and ORP chemical the IntelliChem has fed, as
   running totals (shown in fl. oz. or mL, following Home Assistant's units), so
-  statistics can show how much is used per day or week.
+  statistics can show how much is used per day or week. (Wrong: removed in
+  3.4.1.)
 
 And on the IntelliChlor's device: **Superchlorinate duration** (1 to 96 hours).
 

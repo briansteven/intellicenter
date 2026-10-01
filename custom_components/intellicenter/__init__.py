@@ -45,6 +45,8 @@ from .pyintellicenter import (
     MINF_ATTR,
     MODE_ATTR,
     NORMAL_ATTR,
+    ORPVOL_ATTR,
+    PHVOL_ATTR,
     PMPCIRC_TYPE,
     POSIT_ATTR,
     PUMP_TYPE,
@@ -242,6 +244,7 @@ async def _async_setup(
     entry.runtime_data = handler
 
     _async_migrate_registry(hass, entry, controller.model)
+    _async_remove_retired_entities(hass, entry, controller.model)
 
     device_registry = dr.async_get(hass)
     handler.system_device_id = device_registry.async_get_or_create(
@@ -377,6 +380,36 @@ def _async_migrate_registry(
             device_registry.async_update_device(
                 device.id, new_identifiers={(DOMAIN, new_prefix)}
             )
+
+
+# entities of earlier versions that are no longer provided, removed at setup:
+# (platform, object type, attribute)
+RETIRED_ENTITIES = (
+    # 3.2.0 to 3.4.0's "pH feed total" and "ORP feed total": PHVOL and ORPVOL
+    # turned out not to be running totals (they restart at every dose)
+    (Platform.SENSOR, CHEM_TYPE, PHVOL_ATTR),
+    (Platform.SENSOR, CHEM_TYPE, ORPVOL_ATTR),
+)
+
+
+@callback
+def _async_remove_retired_entities(
+    hass: HomeAssistant, entry: ConfigEntry, model: PoolModel
+) -> None:
+    """Remove the entities of earlier versions that are no longer provided."""
+    prefix = system_id(entry)
+    retired = {
+        (str(platform), f"{prefix}{obj.objnam}{attribute}")
+        for platform, object_type, attribute in RETIRED_ENTITIES
+        for obj in model.getByType(object_type)
+    }
+    entity_registry = er.async_get(hass)
+    for registry_entry in er.async_entries_for_config_entry(
+        entity_registry, entry.entry_id
+    ):
+        if (registry_entry.domain, registry_entry.unique_id) in retired:
+            _LOGGER.info(f"removing {registry_entry.entity_id}: no longer provided")
+            entity_registry.async_remove(registry_entry.entity_id)
 
 
 @callback
