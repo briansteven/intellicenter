@@ -1,0 +1,233 @@
+{
+ "branches": {
+  "NTillmann/intellicenter": {
+   "fix-connection-drops": "9a50f4284b94e4a5e7e0fadfff2d8392b49617b6",
+   "fix-lights": "2917b2427414b80b6976e89894b3e024606ba5e8",
+   "main": "da6b685dc74e77959991854e92a53bd192a91dfc"
+  },
+  "TacoLover619/home-assistant-intellicenter": {
+   "main": "cfc9cc82fe49697bed9386d229c547abca60d3ba"
+  },
+  "alsoszaa/intellicenter": {
+   "main": "aba8b9786dbb682e441756b4a335995242ed62fc"
+  },
+  "anderjoshai/intellicenter": {
+   "main": "b98d47da0597bf996ea83ab8e16f67b3973122dd"
+  },
+  "aweddell/intellicenter": {
+   "heatpump-heatcool": "ddcb6f1bebb15ecc1a3d8f5a62585be0ca66ebf9",
+   "main": "4675771f695c5458f9a1f1a3e6cb2e59de7ec321"
+  },
+  "bbellwfu/intellicenter": {
+   "main": "9ada4904bae12376b7727c34e255733265afb22e"
+  },
+  "bendavis/intellicenter": {
+   "initial": "5d6f708cf73b12e170af25f02f54cd3e9efb2151",
+   "main": "664a59f86456cb511e2666bbc053d3c5be382421"
+  },
+  "bhamiltoncx/intellicenter": {
+   "fix-heater-sensor-cross-body-heat-source": "def07c1127357a95e3331bccf16ccd9d190d0fad",
+   "main": "b9d1ad7c257c27cd3a8b921e1b2c3d4649b8c41a"
+  },
+  "bmrowe/intellicenter": {
+   "circuit_groups": "48a9d396058d2b862ac2eef9e9505bcd27771208",
+   "fix-untyped-object-firmware-3x": "8784548d01d6b70aabb19a39ecb0f3ceded53313",
+   "main": "4675771f695c5458f9a1f1a3e6cb2e59de7ec321",
+   "numbers": "82987a554cf08986b8fdc44483b4ec00bb822595"
+  },
+  "bob-laz/intellicenter": {
+   "main": "0feea26fbdc6725213452588c6f1ad261a9fd210"
+  },
+  "brentb2529/intellicenter": {
+   "chore/security-gate": "2a11ba245fd0153dcc14de6bc00d45ed4f15dd84",
+   "feat/contract-and-currency": "ae0829a697ae97ca84f4e064aebaee7c0cf70848",
+   "main": "d8e743472e88e0e3de0a4c8e0c6169261f8b63a2"
+  },
+  "divinebovine/intellicenter": {
+   "main": "aa6d028d7c10ddcf20ece7f89c430cc8506596fe"
+  },
+  "dwradcliffe/intellicenter": {
+   "circuit_groups": "48a9d396058d2b862ac2eef9e9505bcd27771208",
+   "main": "b2af5ee3b5ac225e4884b8d5641c640beeaf0c7b",
+   "numbers": "82987a554cf08986b8fdc44483b4ec00bb822595"
+  },
+  "gmisner/intellicenter": {
+   "circuit_groups": "48a9d396058d2b862ac2eef9e9505bcd27771208",
+   "fix/binary-sensor-imports": "9be62b2ec44ae2cb5e0dc888f636c0a53824b7c1",
+   "fix/config-entry-unload": "94fd9c92ab51f145bbc3e567fe440f193bba48a0",
+   "fix/entity-native-values": "a8ea9b3931512ae6eea8d8efbf5cb43d21808614",
+   "fix/light-effect-none-guard": "31a337e4901ad829d4706f474e93cb9b6e6f604a",
+   "fix/stable-entity-unique-ids": "e3bfa8ad16a1d3554645deb163d465d0f3d4b19a",
+   "fix/water-heater-fahrenheit-min-temp": "44b7740ff8a4f987c6a783eff95729d843f47cb9",
+   "main": "4675771f695c5458f9a1f1a3e6cb2e59de7ec321",
+   "numbers": "82987a554cf08986b8fdc44483b4ec00bb822595"
+  },
+  "hacctarr/intellicenter": {
+   "circuit_groups": "48a9d396058d2b862ac2eef9e9505bcd27771208",
+   "fix/pump-running-binary-sensor": "ed9a59e5dc3fe3130fc7e09ab486631593807525",
+   "fix/water-heater-state-contract": "919086aaf56f2a09e7e494421cf08ba3cf63c38d",
+   "main": "4675771f695c5458f9a1f1a3e6cb2e59de7ec321",
+   "numbers": "82987a554cf08986b8fdc44483b4ec00bb822595"
+  },
+  "haext/intellicenter": {
+   "main": "12d0b09b54faa7fec555d21af042731da7924825"
+  },
+  "hughwf/intellicenter": {
+   "fix/3.9.1": "e7c62d3aa139f47961ee95c798af95e84825c3aa",
+   "main": "e352061050e0c2e0ec672e69597a5324c9d94fbe",
+   "release/3.8.0": "b99bd85dfc4670e58c065fceca4634a0483c36a0"
+  },
+  "jamincollins/intellicenter": {
+   "initial": "5d6f708cf73b12e170af25f02f54cd3e9efb2151",
+   "main": "aba8b9786dbb682e441756b4a335995242ed62fc"
+  },
+  "jbonta/intellicenter": {
+   "feature/issue-36-intellichem-acid-tank-level": "6e94e45b01fc79392ece6fd38eb291cb0ac12141",
+   "fix/issue-34-pool-heater": "82649fd5d96846c8cc12686beb745a11359f26bd",
+   "fix/multimode-heater-mode-control": "b62d2f815a1976b19445e64bb40da069a4b65eb4",
+   "main": "b905e54f6dbc0484964f4218cd96c90095241313",
+   "release/v3.6.6": "3ec0ab41502a9e241ec4600186287fe00bb08ff5"
+  },
+  "jlvaillant/intellicenter": {
+   "initial": "5d6f708cf73b12e170af25f02f54cd3e9efb2151",
+   "main": "aba8b9786dbb682e441756b4a335995242ed62fc",
+   "pr/29": "98d07a80ca667e2afb7673f3321ed80871d62bb9"
+  },
+  "josehumbertoco/intellicenter": {
+   "main": "8694fbc7b1c96f9e85d89a3651e13ea22715a513"
+  },
+  "joyfulhouse/intellicenter": {
+   "main": "d0c54ac4666fc5838434b54e1e11429911316277"
+  },
+  "jsrook/intellicenter": {
+   "main": "c142397838c6d72b2f1cd22345c7e818c92ca406"
+  },
+  "jstarllc/Josh-Intellicenter": {
+   "josh-updates": "0c91a6ea02ca1c3423b845568b39cb0a45af7b08",
+   "main": "4675771f695c5458f9a1f1a3e6cb2e59de7ec321"
+  },
+  "kilrdgh/intellicenter": {
+   "main": "4675771f695c5458f9a1f1a3e6cb2e59de7ec321"
+  },
+  "loopj/intellicenter": {
+   "intellichem-tank-levels": "fa6f6a40c6ea7e630dccfa634124c83a94f0ae6e",
+   "intellichem-unit-of-measurement": "3196b5575d5464b842fb20313e31bc6c93249775",
+   "main": "4675771f695c5458f9a1f1a3e6cb2e59de7ec321"
+  },
+  "merritt925/intellicenter": {
+   "feature/issue-36-intellichem-acid-tank-level": "6e94e45b01fc79392ece6fd38eb291cb0ac12141",
+   "fix/issue-34-pool-heater": "82649fd5d96846c8cc12686beb745a11359f26bd",
+   "fix/issue-41-retry-on-connection-error": "9f03c8cf001b1bc27629563af2660347b25902b7",
+   "main": "b905e54f6dbc0484964f4218cd96c90095241313",
+   "release/v3.6.6": "3ec0ab41502a9e241ec4600186287fe00bb08ff5"
+  },
+  "mkellogg/intellicenter": {
+   "main": "34ce52e4afff82ef72867d79837cf2e0776df0d4"
+  },
+  "ochlocracy/intellicenter": {
+   "main": "9a50f4284b94e4a5e7e0fadfff2d8392b49617b6"
+  },
+  "paragbatavia/intellicenter": {
+   "fix/ha-2025-compatibility": "45c36fdc1926c77aa80e4374e2567cf7e786af4c",
+   "main": "aba8b9786dbb682e441756b4a335995242ed62fc"
+  },
+  "patedit/intellicenter": {
+   "fix/system-mode-manual": "b17770bc52dfcadce587cbbcfd6476a42458e2b8",
+   "main": "d0c54ac4666fc5838434b54e1e11429911316277"
+  },
+  "philipflesher/intellicenter": {
+   "main": "03d15f2a0ef86d0dfb24bc4ebd802c2063aa2444"
+  },
+  "rog713/intellicenter": {
+   "main": "aba8b9786dbb682e441756b4a335995242ed62fc"
+  },
+  "roopesh/intellicenter": {
+   "initial": "5d6f708cf73b12e170af25f02f54cd3e9efb2151",
+   "main": "27d992fcd08406f109ead4b30c2ce7c4790fdf5b",
+   "patch-1": "98d07a80ca667e2afb7673f3321ed80871d62bb9"
+  },
+  "safadig/intellicenter": {
+   "codex/ha-2026-compatibility": "2ab5dada3ae8fe06d33174e6650a8197e220aa0c",
+   "initial": "5d6f708cf73b12e170af25f02f54cd3e9efb2151",
+   "main": "aba8b9786dbb682e441756b4a335995242ed62fc",
+   "pr/29": "98d07a80ca667e2afb7673f3321ed80871d62bb9"
+  },
+  "scottshanafelt/intellicenter": {
+   "main": "375dcb7307c449d8e4c14030a7b2bb011a35c7ef"
+  },
+  "sebr/intellicenter-home-assistant": {
+   "main": "cfc9cc82fe49697bed9386d229c547abca60d3ba"
+  },
+  "snagytx/intellicenter": {
+   "initial": "5d6f708cf73b12e170af25f02f54cd3e9efb2151",
+   "main": "8803330e1eb4094e1138f06383b40ffa21b6ec4e"
+  },
+  "stgarrity/intellicenter": {
+   "circuit_groups": "48a9d396058d2b862ac2eef9e9505bcd27771208",
+   "main": "4675771f695c5458f9a1f1a3e6cb2e59de7ec321",
+   "numbers": "82987a554cf08986b8fdc44483b4ec00bb822595"
+  },
+  "teast5/intellicenter": {
+   "fix/ha-2025-compatibility": "893c042e2f421d3aae72970c62f8d6427fede926",
+   "initial": "5d6f708cf73b12e170af25f02f54cd3e9efb2151",
+   "main": "aba8b9786dbb682e441756b4a335995242ed62fc",
+   "pr/29": "98d07a80ca667e2afb7673f3321ed80871d62bb9"
+  },
+  "thewolfman56/intellicenter": {
+   "main": "149a936087bc97cb5caee087b02851fb05014546"
+  },
+  "valdisrigdon/intellicenter": {
+   "initial": "5d6f708cf73b12e170af25f02f54cd3e9efb2151",
+   "main": "40fc347b743bbd6919db6dfb7ac70c1c1338f9fe"
+  },
+  "zia-ep/ha_intellicenter": {
+   "main": "bf24bb0defbada5de81e4ec10039e1b7fe4b37f4"
+  }
+ },
+ "last_run": "2026-10-01T18:42:46Z",
+ "network": {
+  "NTillmann/intellicenter": "jlvaillant/intellicenter",
+  "TacoLover619/home-assistant-intellicenter": "dwradcliffe/intellicenter",
+  "alsoszaa/intellicenter": "jlvaillant/intellicenter",
+  "anderjoshai/intellicenter": "dwradcliffe/intellicenter",
+  "aweddell/intellicenter": "dwradcliffe/intellicenter",
+  "bbellwfu/intellicenter": "jlvaillant/intellicenter",
+  "bendavis/intellicenter": "jlvaillant/intellicenter",
+  "bhamiltoncx/intellicenter": "joyfulhouse/intellicenter",
+  "bmrowe/intellicenter": "dwradcliffe/intellicenter",
+  "bob-laz/intellicenter": "joyfulhouse/intellicenter",
+  "brentb2529/intellicenter": "joyfulhouse/intellicenter",
+  "divinebovine/intellicenter": "joyfulhouse/intellicenter",
+  "dwradcliffe/intellicenter": "jlvaillant/intellicenter",
+  "gmisner/intellicenter": "dwradcliffe/intellicenter",
+  "hacctarr/intellicenter": "dwradcliffe/intellicenter",
+  "haext/intellicenter": "jlvaillant/intellicenter",
+  "hughwf/intellicenter": "joyfulhouse/intellicenter",
+  "jamincollins/intellicenter": "jlvaillant/intellicenter",
+  "jbonta/intellicenter": "joyfulhouse/intellicenter",
+  "jlvaillant/intellicenter": null,
+  "josehumbertoco/intellicenter": "dwradcliffe/intellicenter",
+  "joyfulhouse/intellicenter": "dwradcliffe/intellicenter",
+  "jsrook/intellicenter": "jlvaillant/intellicenter",
+  "jstarllc/Josh-Intellicenter": "dwradcliffe/intellicenter",
+  "kilrdgh/intellicenter": "dwradcliffe/intellicenter",
+  "loopj/intellicenter": "dwradcliffe/intellicenter",
+  "merritt925/intellicenter": "joyfulhouse/intellicenter",
+  "mkellogg/intellicenter": "dwradcliffe/intellicenter",
+  "ochlocracy/intellicenter": "jlvaillant/intellicenter",
+  "paragbatavia/intellicenter": "jlvaillant/intellicenter",
+  "patedit/intellicenter": "joyfulhouse/intellicenter",
+  "philipflesher/intellicenter": "jlvaillant/intellicenter",
+  "rog713/intellicenter": "jlvaillant/intellicenter",
+  "roopesh/intellicenter": "jlvaillant/intellicenter",
+  "safadig/intellicenter": "jlvaillant/intellicenter",
+  "scottshanafelt/intellicenter": "joyfulhouse/intellicenter",
+  "sebr/intellicenter-home-assistant": "dwradcliffe/intellicenter",
+  "snagytx/intellicenter": "jlvaillant/intellicenter",
+  "stgarrity/intellicenter": "dwradcliffe/intellicenter",
+  "teast5/intellicenter": "jlvaillant/intellicenter",
+  "thewolfman56/intellicenter": "dwradcliffe/intellicenter",
+  "valdisrigdon/intellicenter": "jlvaillant/intellicenter",
+  "zia-ep/ha_intellicenter": "dwradcliffe/intellicenter"
+ }
+}
