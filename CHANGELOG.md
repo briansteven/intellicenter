@@ -2,7 +2,37 @@
 
 Changes in this fork (briansteven/intellicenter) since dwradcliffe/intellicenter
 v2.0.0. Upgrading from any of these versions is a drop-in replacement: no
-configuration changes, and entities keep their IDs.
+configuration changes, and entities keep their IDs. The one deliberate exception
+is the water heater state in 2.2.0.
+
+## 2.2.0
+
+### Breaking change: a water heater's state is its operation mode
+
+A water heater's state is now its operation mode: the name of the selected
+heater (for example `Gas Heater`), or `off` when no heater is selected. It used
+to be `on`, `idle` or `off`, which Home Assistant doesn't expect for a water
+heater: its controls read the state as the selected mode, so the selected heater
+was never shown as selected in the water heater dialog or a tile card's
+operation mode control (dwradcliffe/intellicenter#40 by @hacctarr).
+
+Whether a heater is heating right now is the heater's binary sensor (for example
+`binary_sensor.gas_heater`), which reports heating for any body it serves,
+including the spa on shared equipment. The water heater's `HTMODE` attribute is
+also still there (`0` when not heating).
+
+**What to check:** automations, scripts, templates and dashboards that compare a
+water heater's state with `on` or `idle`:
+
+| Before | After |
+| --- | --- |
+| water heater is `on` | the heater's binary sensor is `on` |
+| water heater is `idle` | the body is on, a heater is selected (water heater is not `off`) and the heater's binary sensor is `off` |
+| water heater is `off` | water heater is `off` (no heater selected); a body that is switched off with a heater selected now shows the heater's name |
+
+For example, a notification template that said
+`{{ states('water_heater.spa') }}` can say
+`{{ 'heating' if is_state('binary_sensor.gas_heater', 'on') else ('off' if is_state('water_heater.spa', 'off') else 'idle') }}`.
 
 ## 2.1.0
 

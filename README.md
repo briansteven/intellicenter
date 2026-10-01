@@ -9,7 +9,9 @@
 This is a maintained fork of [dwradcliffe/intellicenter](https://github.com/dwradcliffe/intellicenter)
 (itself a fork of [jlvaillant/intellicenter](https://github.com/jlvaillant/intellicenter)).
 It is a drop-in replacement: same integration, same entities and entity IDs, no
-configuration changes. It focuses on reliability:
+configuration changes. (One deliberate exception since 2.2.0: a water heater's
+state is now its operation mode, see the [changelog](CHANGELOG.md#220).) It
+focuses on reliability:
 
 - **Notices when the IntelliCenter goes away.** When the panel loses power or
   drops off the network it never closes the connection, so Home Assistant used to
@@ -57,6 +59,8 @@ Assistant.
    ("Integration") and download it.
 3. Restart Home Assistant. Your config entry, entities, entity IDs, areas and
    customizations are kept.
+4. If an automation or template checks a water heater for `on` or `idle`, switch
+   it to the heater's binary sensor (see the [2.2.0 changelog](CHANGELOG.md#220)).
 
 ### Features
 
@@ -74,8 +78,9 @@ Assistant.
     - a sensor for the desired temperature
     - a water heater entity (if applicable):
         - choose a heater from the list to enable it, set to OFF otherwise
-        - status is 'OFF', 'IDLE' (if heater is enabled but NOT running) or
-          'ON' is the heater is currently running
+        - its state is the selected heater's name, or 'off' when no heater is
+          selected (whether the heater is running right now is the heater's
+          binary sensor, below)
         Note that the water heater supports turn_on and turn_off operations.
         for turn_on, it will reuse the last heater chosen.
       A heater shared by the pool and the spa (shared equipment) appears in

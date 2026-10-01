@@ -135,3 +135,25 @@ async def test_temperatures_follow_home_assistant_units(
     state = hass.states.get(entity_id)
     assert state.attributes["unit_of_measurement"] == "°C"
     assert float(state.state) == pytest.approx(25.0, abs=0.1)
+
+
+async def test_water_heater_state_is_its_operation_mode(
+    hass: HomeAssistant, integration, panel
+) -> None:
+    """A water heater's state is the selected heater, or off, as Home Assistant expects.
+
+    Whether the heater is actually heating is reported by the heater's binary
+    sensor, not by the water heater's state.
+    """
+    pool = hass.states.get("water_heater.test_pool_pool")
+    assert pool.state == pool.attributes["operation_mode"] == "Gas Heater"
+    # the spa body is off, but its heat source is still selected
+    assert hass.states.get("water_heater.test_pool_spa").state == "Gas Heater"
+
+    panel.set_params("B1101", {"HTMODE": "1"})
+    await wait_for(lambda: hass.states.get("binary_sensor.test_pool_gas_heater").state == "on")
+    assert hass.states.get("water_heater.test_pool_pool").state == "Gas Heater"
+
+    panel.set_params("B1101", {"HEATER": "00000", "HTMODE": "0"})
+    await wait_for(lambda: hass.states.get("water_heater.test_pool_pool").state == "off")
+    assert hass.states.get("binary_sensor.test_pool_gas_heater").state == "off"
