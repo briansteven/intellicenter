@@ -103,6 +103,10 @@ you move it.
   hardness and cyanuric acid values the saturation index is computed from.
 - **Lights and light shows**: on/off, with color effects for IntelliBrite,
   MagicStream and GloBrite lights.
+- **Egg timers** (disabled by default): for each body of water, light, light
+  show, featured circuit and circuit group, how long it runs once turned on by
+  hand (in minutes, up to 23 hours 59 minutes), and its "Do not stop" (on: it
+  runs until turned off). A body's are on the body's device.
 - **Featured circuits and circuit groups** (for example "Cleaner" or "Spa
   Blower"): switches.
 - **Air, water and solar sensors.**

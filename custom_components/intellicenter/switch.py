@@ -8,11 +8,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 
-from .entity import PoolEntity
+from .entity import PoolEntity, egg_timer_circuits
 from .pyintellicenter import (
     BODY_TYPE,
     CHEM_TYPE,
     CIRCUIT_TYPE,
+    DNTSTP_ATTR,
     HEATER_ATTR,
     HTMODE_ATTR,
     SUPER_ATTR,
@@ -70,6 +71,10 @@ async def async_setup_entry(
                 PoolCircuit(entry, controller, obj, icon="mdi:alpha-g-box-outline"))
         elif obj.objtype == SYSTEM_TYPE:
             switches.append(VacationMode(entry, controller, obj))
+
+    for circuit, body in egg_timer_circuits(controller.model):
+        if circuit[DNTSTP_ATTR] in ("ON", "OFF"):
+            switches.append(DoNotStop(entry, controller, circuit, body))
 
     async_add_entities(switches)
 
@@ -131,3 +136,40 @@ class VacationMode(PoolCircuit):
             icon="mdi:palm-tree",
             enabled_by_default=False,
         )
+
+
+class DoNotStop(PoolCircuit):
+    """A circuit's "Don't Stop": on, it runs until turned off (no egg timer).
+
+    Disabled by default, with the circuit's egg timer.
+    """
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, entry: ConfigEntry, controller, circuit, body):
+        """Initialize."""
+        super().__init__(
+            entry,
+            controller,
+            circuit,
+            attribute_key=DNTSTP_ATTR,
+            name="Do not stop"
+            if body is not None
+            else f"{circuit.sname or circuit.objnam} do not stop",
+            icon="mdi:timer-off-outline",
+            deviceObject=body,
+            enabled_by_default=False,
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if the circuit runs until turned off."""
+        return self._poolObject[DNTSTP_ATTR] == "ON"
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Run the circuit until turned off."""
+        await self.async_request_changes({DNTSTP_ATTR: "ON"})
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Use the circuit's egg timer."""
+        await self.async_request_changes({DNTSTP_ATTR: "OFF"})

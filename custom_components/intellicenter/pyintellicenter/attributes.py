@@ -37,8 +37,10 @@ BODY_ATTR = "BODY"
 CIRCUIT_ATTR = "CIRCUIT"
 COMUART_ATTR = "COMUART"
 DLY_ATTR = "DLY"
+DNTSTP_ATTR = "DNTSTP"
 ENABLE_ATTR = "ENABLE"
 FEATR_ATTR = "FEATR"
+FILTER_ATTR = "FILTER"
 GPM_ATTR = "GPM"
 HEATER_ATTR = "HEATER"
 HNAME_ATTR = "HNAME"
@@ -111,7 +113,7 @@ BODY_ATTRIBUTES = {
     "ACT2",  # (int) ???
     "ACT3",  # (int) ???
     "ACT4",  # (int) ???
-    "FILTER",  # (objnam) Circuit object that filter this body
+    FILTER_ATTR,  # (objnam) the body's circuit (its filter circuit)
     HEATER_ATTR,  # (objnam)
     "HITMP",  # (int) maximum temperature to set
     HNAME_ATTR,  # equals to OBJNAM
@@ -183,7 +185,7 @@ CIRCUIT_ATTRIBUTES = {
     BODY_ATTR,
     "CHILD",
     "COVER",
-    "DNTSTP",  # (ON/OFF) "Don't Stop", disable egg timer
+    DNTSTP_ATTR,  # (ON/OFF) "Don't Stop", disable egg timer
     FEATR_ATTR,  # (ON/OFF) Featured
     "FREEZE",  # (ON/OFF) Freeze Protection
     HNAME_ATTR,  # equals to OBJNAM

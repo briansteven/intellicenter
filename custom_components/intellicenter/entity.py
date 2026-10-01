@@ -20,12 +20,17 @@ from .const import COMMAND_TIMEOUT, DOMAIN, connection_signal, update_signal
 from .pyintellicenter import (
     BODY_TYPE,
     CHEM_TYPE,
+    CIRCUIT_ATTR,
+    CIRCUIT_TYPE,
+    FILTER_ATTR,
     HEATER_TYPE,
     PUMP_TYPE,
     SNAME_ATTR,
     STATUS_ATTR,
+    TIME_ATTR,
     CommandError,
     ModelController,
+    PoolModel,
     PoolObject,
 )
 
@@ -143,6 +148,49 @@ def get_device(
         # Home Assistant 2026.9 and later
         return device_registry.async_get_device_by_identifier(identifier, entry_id)
     return device_registry.async_get_device(identifiers={identifier})
+
+
+# circuits a user doesn't turn on: freeze protection, and the "all lights
+# on/off" commands
+NOT_USER_CIRCUITS = {"FRZ", "ALL"}
+
+
+def egg_timer_circuits(
+    model: PoolModel,
+) -> list[tuple[PoolObject, PoolObject | None]]:
+    """Return the circuits whose egg timer is offered, with their body of water.
+
+    A circuit's egg timer turns it off after it has run that many minutes since
+    it was turned on by hand (not by a schedule), unless its "Don't Stop" is
+    on. It is offered for the circuits Home Assistant shows: those of the bodies
+    of water (paired with their body), lights and light shows, featured
+    circuits and circuit groups (paired with None).
+    """
+    # a body's circuit is its FILTER (IC 1.064) or CIRCUIT
+    body_of = {}
+    for body in model.getByType(BODY_TYPE):
+        for attribute in (FILTER_ATTR, CIRCUIT_ATTR):
+            if body[attribute]:
+                body_of.setdefault(body[attribute], body)
+
+    circuits = []
+    for obj in model.objectList:
+        if obj.objtype != CIRCUIT_TYPE or obj.subtype in NOT_USER_CIRCUITS:
+            continue
+        try:
+            int(obj[TIME_ATTR])
+        except (TypeError, ValueError):
+            continue
+        body = body_of.get(obj.objnam)
+        if (
+            body is not None
+            or obj.isALight
+            or obj.isALightShow
+            or obj.isFeatured
+            or obj.subtype == "CIRCGRP"
+        ):
+            circuits.append((obj, body))
+    return circuits
 
 
 class PoolEntity(Entity):

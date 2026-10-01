@@ -13,9 +13,12 @@ from homeassistant.helpers.event import async_call_later, async_track_time_inter
 from .entity import DEVICE_TYPES, get_device, object_device_identifier
 from .pyintellicenter import (
     BODY_ATTR,
+    BODY_TYPE,
     CHEM_TYPE,
+    CIRCUIT_ATTR,
     CIRCUIT_TYPE,
     FEATR_ATTR,
+    FILTER_ATTR,
     HEATER_TYPE,
     OBJTYP_ATTR,
     SNAME_ATTR,
@@ -34,6 +37,7 @@ SETTLE_DELAY = 60
 
 # settings that decide which entities an object gets
 SHAPING_ATTRIBUTES = {
+    BODY_TYPE: (FILTER_ATTR, CIRCUIT_ATTR),  # the body's circuit (its egg timer)
     CIRCUIT_TYPE: (FEATR_ATTR,),  # featured circuits are switches
     HEATER_TYPE: (BODY_ATTR,),  # the bodies a heater serves get water heaters
     CHEM_TYPE: (BODY_ATTR,),  # a chlorinator gets an output setting per body

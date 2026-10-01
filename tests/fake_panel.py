@@ -40,6 +40,7 @@ DEFAULT_OBJECTS = {
         "SUBTYP": "POOL",
         "SNAME": "Pool",
         "PARENT": "M0101",
+        "FILTER": "C0006",
         "HEATER": "H0001",
         "HTSRC": "H0001",
         "HTMODE": "0",
@@ -54,6 +55,7 @@ DEFAULT_OBJECTS = {
         "SUBTYP": "SPA",
         "SNAME": "Spa",
         "PARENT": "M0102",
+        "FILTER": "C0001",
         "HEATER": "H0001",
         "HTSRC": "H0001",
         "HTMODE": "0",
@@ -79,6 +81,8 @@ DEFAULT_OBJECTS = {
         "STATUS": "ON",
         "FEATR": "OFF",
         "USE": "WHITER",
+        "TIME": "720",
+        "DNTSTP": "OFF",
     },
     "C0001": {
         "OBJTYP": "CIRCUIT",
@@ -88,6 +92,8 @@ DEFAULT_OBJECTS = {
         "STATUS": "OFF",
         "FEATR": "OFF",
         "USE": "WHITER",
+        "TIME": "720",
+        "DNTSTP": "OFF",
     },
     "C0002": {
         "OBJTYP": "CIRCUIT",
@@ -97,6 +103,8 @@ DEFAULT_OBJECTS = {
         "STATUS": "OFF",
         "FEATR": "OFF",
         "USE": "MAGNTAR",
+        "TIME": "720",
+        "DNTSTP": "OFF",
     },
     "C0004": {
         "OBJTYP": "CIRCUIT",
@@ -106,6 +114,30 @@ DEFAULT_OBJECTS = {
         "STATUS": "OFF",
         "FEATR": "ON",
         "USE": "WHITER",
+        "TIME": "720",
+        "DNTSTP": "OFF",
+    },
+    # not featured: no switch, so no egg timer either
+    "C0003": {
+        "OBJTYP": "CIRCUIT",
+        "SUBTYP": "GENERIC",
+        "SNAME": "AUX 3",
+        "PARENT": "M0101",
+        "STATUS": "OFF",
+        "FEATR": "OFF",
+        "TIME": "720",
+        "DNTSTP": "OFF",
+    },
+    # a command, not a circuit a user turns on
+    "_A111": {
+        "OBJTYP": "CIRCUIT",
+        "SUBTYP": "ALL",
+        "SNAME": "All Lights On",
+        "PARENT": "00000",
+        "STATUS": "PERMIT",
+        "FEATR": "OFF",
+        "TIME": "0",
+        "DNTSTP": "OFF",
     },
     "PMP01": {
         "OBJTYP": "PUMP",

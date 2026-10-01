@@ -28,7 +28,7 @@ except ImportError:  # older Home Assistant releases without UnitOfRatio
         CONCENTRATION_PARTS_PER_MILLION as PARTS_PER_MILLION,
     )
 
-from .entity import PoolEntity
+from .entity import PoolEntity, egg_timer_circuits
 from .pyintellicenter import (
     ALK_ATTR,
     BODY_ATTR,
@@ -49,6 +49,7 @@ from .pyintellicenter import (
     SEC_ATTR,
     SELECT_ATTR,
     SPEED_ATTR,
+    TIME_ATTR,
     TIMOUT_ATTR,
     ModelController,
     PoolObject,
@@ -67,6 +68,10 @@ INTELLICHEM_SETTINGS = [
     (CALC_ATTR, "Calcium hardness", 0, 800, 1, PARTS_PER_MILLION, None),
     (CYACID_ATTR, "Cyanuric acid", 0, 200, 1, PARTS_PER_MILLION, None),
 ]
+
+# a circuit's egg timer, in minutes: up to 23 hours 59 minutes, as the
+# IntelliCenter offers it (beyond that is its "Don't Stop")
+EGG_TIMER_MAX = 23 * 60 + 59
 
 # -------------------------------------------------------------------------------------
 
@@ -151,6 +156,9 @@ async def async_setup_entry(
                             mode=NumberMode.BOX,
                         )
                     )
+
+    for circuit, body in egg_timer_circuits(controller.model):
+        numbers.append(EggTimer(entry, controller, circuit, body))
 
     async_add_entities(numbers)
 
@@ -279,4 +287,35 @@ class PumpSpeed(PoolNumber):
         """Return true if the setting (or its unit) changed."""
         return bool(
             {SPEED_ATTR, SELECT_ATTR} & updates.get(self._poolObject.objnam, {}).keys()
+        )
+
+
+# -------------------------------------------------------------------------------------
+
+
+class EggTimer(PoolNumber):
+    """How long a circuit runs once turned on by hand (its egg timer).
+
+    A body's circuit has its egg timer on the body's device; other circuits on
+    the IntelliCenter's. Disabled by default.
+    """
+
+    def __init__(self, entry, controller, circuit, body):
+        """Initialize."""
+        super().__init__(
+            entry,
+            controller,
+            circuit,
+            attribute_key=TIME_ATTR,
+            name="Egg timer"
+            if body is not None
+            else f"{circuit.sname or circuit.objnam} egg timer",
+            icon="mdi:timer-outline",
+            unit_of_measurement=UnitOfTime.MINUTES,
+            device_class=NumberDeviceClass.DURATION,
+            min_value=1,
+            max_value=EGG_TIMER_MAX,
+            mode=NumberMode.BOX,
+            deviceObject=body,
+            enabled_by_default=False,
         )

@@ -4,6 +4,19 @@ Changes in briansteven/intellicenter since dwradcliffe/intellicenter v2.0.0.
 Versions 2.x are drop-in replacements for dwradcliffe's (with the water heater
 state change in 2.2.0); 3.0.0 makes this an independent version.
 
+## 3.4.0
+
+### Egg timers
+
+The IntelliCenter turns a circuit off once it has run for its egg timer after
+being turned on by hand (12 hours unless changed; schedules have their own end
+time), unless the circuit's "Don't Stop" is on. Both are now settings in Home
+Assistant for each body of water (on the body's device: "Spa Egg timer", "Spa
+Do not stop"), light, light show, featured circuit and circuit group (on the
+IntelliCenter's device). The egg timer is in minutes, from 1 to 1439 (23 hours
+59 minutes), as the IntelliCenter offers it. **These settings are disabled by
+default**: enable the ones you want (Settings > Entities).
+
 ## 3.3.0
 
 ### Pump speeds
