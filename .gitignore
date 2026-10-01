@@ -2,3 +2,5 @@
 .DS_Store
 *.code-workspace
 .vscode
+.pytest_cache/
+__pycache__/
