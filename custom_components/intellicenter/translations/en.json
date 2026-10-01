@@ -43,5 +43,16 @@
       "title": "The {body} isn't being heated",
       "description": "The {body} is on and below its target temperature with {heater} selected, but the IntelliCenter hasn't heated it for {minutes} minutes. {heater} isn't assigned to the {body} in the IntelliCenter's heater settings, and some IntelliCenters don't heat a body with a heater that isn't assigned to it.\n\nTo fix it, assign {heater} to the {body} in the heater settings of the Pentair app or at the IntelliCenter panel (a heater shared by the pool and the spa is assigned to both). This message goes away by itself once the {body} is heated or {heater} is assigned to it."
     }
+  },
+  "exceptions": {
+    "command_refused": {
+      "message": "The IntelliCenter refused the change to {name} (error {code})."
+    },
+    "command_timeout": {
+      "message": "The IntelliCenter didn't answer the change to {name} within {seconds} seconds. It may still be applied."
+    },
+    "not_connected": {
+      "message": "Not connected to the IntelliCenter: {name} wasn't changed."
+    }
   }
 }

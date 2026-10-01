@@ -9,7 +9,9 @@ protocol on port 6681 to load the whole integration:
 - SetParamList: apply the changes, answer, then push a NotifyList
 
 Attributes the panel has no value for are echoed back as their own key name,
-which is how the real panel says "undefined".
+which is how the real panel says "undefined". Like the real panel (IC 1.064),
+an error is answered with a messageID of its own, not the request's: a change
+to an unknown object gets a 404, an unknown command an "Error" 404.
 
 Like the real panel on power loss, it can be told to go silent without
 closing the connection.
@@ -175,6 +177,7 @@ class FakePanel:
         self.objects = copy.deepcopy(objects or DEFAULT_OBJECTS)
         self.silent = False  # when True, requests are read but never answered
         self.response_delay = 0  # seconds to wait before answering each request
+        self.refuse_changes = {}  # objnam: error code to answer its changes with
         self.requests = []  # every request received, in order
         self.connections = 0
         self._server = None
@@ -265,6 +268,17 @@ class FakePanel:
             ]
 
         if command.upper() == "SETPARAMLIST":
+            for item in request["objectList"]:
+                objnam = item["objnam"]
+                if objnam not in self.objects or objnam in self.refuse_changes:
+                    code = self.refuse_changes.get(objnam, "404")
+                    return [
+                        {
+                            "command": "SetParamList",
+                            "messageID": str(uuid.uuid4()),
+                            "response": code,
+                        }
+                    ]
             notify = []
             for item in request["objectList"]:
                 self.objects[item["objnam"]].update(item["params"])
@@ -278,7 +292,14 @@ class FakePanel:
                 },
             ]
 
-        return [{"command": command, "messageID": msg_id, "response": "400"}]
+        return [
+            {
+                "command": "Error",
+                "messageID": str(uuid.uuid4()),
+                "response": "404",
+                "description": f"'{command}' Unknown command!",
+            }
+        ]
 
     def _broadcast(self, message: dict):
         data = (json.dumps(message) + "\r\n").encode()

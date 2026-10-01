@@ -98,4 +98,4 @@ class PoolNumber(PoolEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
         changes = {self._attribute_key: str(int(value))}
-        self.requestChanges(changes)
+        await self.async_request_changes(changes)

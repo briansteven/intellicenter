@@ -17,6 +17,7 @@ from fake_intellicenter import FakeIntelliCenter  # noqa: E402
 from fake_panel import FakePanel  # noqa: E402
 from pyintellicenter import (  # noqa: E402
     BaseController,
+    CommandError,
     ConnectionHandler,
     ModelController,
     PoolModel,
@@ -352,3 +353,67 @@ def test_model_controller_accepts_keepalive_settings():
     )
     assert controller._keepAliveInterval == 10
     assert controller._keepAliveTimeout == 5
+
+
+def test_error_answered_with_another_message_id_reaches_its_request():
+    """The panel answers errors with a messageID of its own (seen on IC 1.064).
+
+    With one request on the wire at a time, the error still belongs to the
+    request waiting for it: it fails with the error instead of timing out.
+    """
+
+    async def scenario():
+        panel = FakeIntelliCenter()
+        port = await panel.start()
+        controller = BaseController(
+            "127.0.0.1", port, asyncio.get_running_loop(), keepAliveInterval=0
+        )
+        try:
+            await controller.start()
+            panel.error_after_first = True
+            panel.mismatched_error_ids = True
+            try:
+                await controller.requestChangesAndWait("B1101", {"STATUS": "ON"}, 2)
+            except CommandError as err:
+                return err.errorCode
+        finally:
+            controller.stop()
+            await panel.close()
+
+    assert asyncio.run(scenario()) == "400"
+
+
+def test_request_and_wait_without_a_connection():
+    """Waiting for a change without a connection fails right away."""
+
+    async def scenario():
+        controller = BaseController("127.0.0.1", loop=asyncio.get_running_loop())
+        try:
+            await controller.requestChangesAndWait("B1101", {"STATUS": "ON"}, 2)
+        except ConnectionError:
+            return "ConnectionError"
+
+    assert asyncio.run(scenario()) == "ConnectionError"
+
+
+def test_unanswered_change_is_forgotten():
+    """A change whose answer doesn't come in time times out and isn't tracked."""
+
+    async def scenario():
+        panel = FakeIntelliCenter()
+        port = await panel.start()
+        controller = BaseController(
+            "127.0.0.1", port, asyncio.get_running_loop(), keepAliveInterval=0
+        )
+        try:
+            await controller.start()
+            panel.silent = True
+            try:
+                await controller.requestChangesAndWait("B1101", {"STATUS": "ON"}, 0.2)
+            except TimeoutError:
+                return dict(controller._requests)
+        finally:
+            controller.stop()
+            await panel.close()
+
+    assert asyncio.run(scenario()) == {}

@@ -168,7 +168,7 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperatures."""
         target_temperature = kwargs.get(ATTR_TEMPERATURE)
-        self.requestChanges({LOTMP_ATTR: str(int(target_temperature))})
+        await self.async_request_changes({LOTMP_ATTR: str(int(target_temperature))})
 
     def _heaterName(self, objnam: str) -> str:
         """Return the name of a heater, falling back to its id if it has none."""
@@ -199,11 +199,11 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
     async def async_set_operation_mode(self, operation_mode: str) -> None:
         """Set new target operation mode."""
         if operation_mode == STATE_OFF:
-            self._turnOff()
+            await self.async_turn_off()
         else:
             for heater in self._heaters():
                 if operation_mode == self._heaterName(heater):
-                    self.requestChanges({HEATER_ATTR: heater})
+                    await self.async_request_changes({HEATER_ATTR: heater})
                     break
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -213,14 +213,11 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
             if self._lastHeater in self._heater_list
             else self._heater_list[0]
         )
-        self.requestChanges({HEATER_ATTR: heater})
+        await self.async_request_changes({HEATER_ATTR: heater})
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn heating off."""
-        self._turnOff()
-
-    def _turnOff(self):
-        self.requestChanges({HEATER_ATTR: NULL_OBJNAM})
+        await self.async_request_changes({HEATER_ATTR: NULL_OBJNAM})
 
     def isUpdated(self, updates: dict[str, dict[str, str]]) -> bool:
         """Return true if the entity is updated by the updates from Intellicenter."""

@@ -21,8 +21,10 @@ and focuses on reliability:
   to stay "connected" to nothing, with every value frozen. A keep-alive detects
   this within about 90 seconds, marks the entities unavailable, and reconnects as
   soon as the panel is back.
-- **Commands don't stop working.** Commands are sent from Home Assistant's event
-  loop, so the request queue can't wedge.
+- **Commands don't fail silently.** Commands wait for the IntelliCenter's answer:
+  one it refuses or doesn't answer shows an error (and fails the automation step
+  that sent it) instead of being lost. They are sent from Home Assistant's
+  event loop, so the request queue can't wedge.
 - **Says why a body isn't heated.** If the pool or spa stays cold while a heater
   that isn't assigned to it is selected, a repair explains how to fix the heater
   settings.

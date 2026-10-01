@@ -19,9 +19,10 @@ class RecordingController:
         """Initialize."""
         self.messages = []
 
-    def receivedMessage(self, msg_id, command, response, msg):
+    def receivedMessage(self, msg_id, command, response, msg, answering=None):
         """Record a message."""
         self.messages.append(msg)
+        self.answering = answering
 
 
 class RecordingTransport:

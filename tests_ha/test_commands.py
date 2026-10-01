@@ -106,3 +106,109 @@ async def test_request_from_another_thread_is_sent_from_the_loop(
         ICProtocol._writeToTransport = original
 
     assert set(write_threads) == {loop_thread}
+
+
+async def call_and_catch(hass, domain, service, data):
+    """Call a service and return the error it raised (None if it didn't)."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    try:
+        await hass.services.async_call(domain, service, data, blocking=True)
+    except HomeAssistantError as err:
+        return err
+    return None
+
+
+async def test_refused_command_is_reported(
+    hass: HomeAssistant, integration, panel
+) -> None:
+    """A change the IntelliCenter refuses raises an error instead of vanishing.
+
+    The panel answers an error with a messageID of its own: the answer still
+    reaches the command that was waiting for it.
+    """
+    panel.refuse_changes["B1202"] = "406"
+    err = await call_and_catch(hass, "switch", "turn_on", {"entity_id": "switch.spa"})
+    assert err is not None
+    assert err.translation_key == "command_refused"
+    assert err.translation_placeholders == {"name": "Spa", "code": "406"}
+    assert hass.states.get("switch.spa").state == "off"
+
+    # later commands are unaffected
+    del panel.refuse_changes["B1202"]
+    assert await call_and_catch(
+        hass, "switch", "turn_on", {"entity_id": "switch.spa"}
+    ) is None
+    await wait_for(lambda: hass.states.get("switch.spa").state == "on")
+
+
+async def test_refused_setting_is_reported(
+    hass: HomeAssistant, integration, panel
+) -> None:
+    """The same for water heater and chlorinator settings."""
+    panel.refuse_changes["B1202"] = "400"
+    panel.refuse_changes["CHR01"] = "400"
+    err = await call_and_catch(
+        hass,
+        "water_heater",
+        "set_temperature",
+        {"entity_id": "water_heater.spa_heater", "temperature": 101},
+    )
+    assert err.translation_key == "command_refused"
+    err = await call_and_catch(
+        hass,
+        "number",
+        "set_value",
+        {"entity_id": "number.intellichlor_1_pool_output", "value": 30},
+    )
+    assert err.translation_key == "command_refused"
+    assert err.translation_placeholders["name"] == "IntelliChlor 1"
+
+
+async def test_unanswered_command_is_reported(
+    hass: HomeAssistant, integration, panel
+) -> None:
+    """A change the IntelliCenter doesn't answer raises an error after a while."""
+    from unittest.mock import patch
+
+    import custom_components.intellicenter.entity as entity
+
+    panel.silent = True
+    with patch.object(entity, "COMMAND_TIMEOUT", 0.3):
+        err = await call_and_catch(
+            hass, "light", "turn_on", {"entity_id": "light.test_pool_pool_light"}
+        )
+    assert err.translation_key == "command_timeout"
+    assert err.translation_placeholders == {"name": "Pool Light", "seconds": "0.3"}
+
+
+async def test_command_without_a_connection_is_reported(
+    hass: HomeAssistant, integration, panel
+) -> None:
+    """A change made while the connection is down says so."""
+    component = hass.data["entity_components"]["switch"]
+    entity = component.get_entity("switch.test_pool_waterfall")
+
+    panel.silent = True
+    for writer in list(panel._writers):
+        writer.transport.abort()
+    await wait_for(lambda: not integration.runtime_data.controller.connected)
+
+    from homeassistant.exceptions import HomeAssistantError
+
+    with pytest.raises(HomeAssistantError) as err:
+        await entity.async_turn_on()
+    assert err.value.translation_key == "not_connected"
+
+
+async def test_errors_are_translated(hass: HomeAssistant, integration, panel) -> None:
+    """The error shown to the user is the translated sentence."""
+    from homeassistant.helpers.translation import async_get_translations
+
+    translations = await async_get_translations(
+        hass, "en", "exceptions", ["intellicenter"]
+    )
+    message = translations["component.intellicenter.exceptions.command_refused.message"]
+    assert message.format(name="Spa", code="406") == (
+        "The IntelliCenter refused the change to Spa (error 406)."
+    )

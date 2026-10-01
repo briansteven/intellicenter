@@ -4,6 +4,32 @@ Changes in briansteven/intellicenter since dwradcliffe/intellicenter v2.0.0.
 Versions 2.x are drop-in replacements for dwradcliffe's (with the water heater
 state change in 2.2.0); 3.0.0 makes this an independent version.
 
+## 3.1.0
+
+### Failed commands are reported
+
+Turning something on or off, or changing a setting (water heater, chlorinator
+output, light show), used to send the command without checking the
+IntelliCenter's answer: a command it refused, or that never reached it, was
+silently lost, and the switch just flipped back. Commands now wait for the
+answer (up to 10 seconds) and report a failure in Home Assistant: an error in
+the interface, a failed step in an automation or script (where
+`continue_on_error: true` keeps going), with the reason:
+
+- "The IntelliCenter refused the change to Spa (error 406)."
+- "The IntelliCenter didn't answer the change to Spa within 10 seconds. It may
+  still be applied."
+- "Not connected to the IntelliCenter: Spa wasn't changed."
+
+The IntelliCenter answers an error with a message ID of its own rather than the
+request's (seen on firmware 1.064: a change to an unknown object is answered
+`404` with a random ID). Requests go out one at a time, so an error is now
+matched to the request waiting for it. This also stops the keep-alive check
+from waiting on an answer it already got.
+
+**What to check:** automations and scripts that should keep going when an
+IntelliCenter command fails need `continue_on_error: true` on that step.
+
 ## 3.0.0
 
 This version no longer aims to stay interchangeable with dwradcliffe's: it

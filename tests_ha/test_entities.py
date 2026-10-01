@@ -98,7 +98,13 @@ async def test_diagnostics(hass: HomeAssistant, integration) -> None:
 
     result = await async_get_config_entry_diagnostics(hass, integration)
 
-    assert result["integration_version"] == "3.0.0"
+    import json
+    import os
+
+    import custom_components.intellicenter as ic
+
+    with open(os.path.join(os.path.dirname(ic.__file__), "manifest.json")) as f:
+        assert result["integration_version"] == json.load(f)["version"]
     assert result["entry"]["data"] == {"host": REDACTED}
     assert result["entry"]["unique_id"] == REDACTED
     assert result["entry"]["title"] == REDACTED

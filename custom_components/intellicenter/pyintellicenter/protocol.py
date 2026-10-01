@@ -51,6 +51,9 @@ class ICProtocol(asyncio.Protocol):
         # see sendRequest and responseReceived for details
         self._out_pending = 0
         self._out_queue = SimpleQueue()
+        # the messageID of the request on the wire: with one request out at a
+        # time, the next response is its answer (see processMessage)
+        self._inflight = None
 
         # and the number of unacknowledgged ping issued
         self._num_unacked_pings = 0
@@ -103,7 +106,7 @@ class ICProtocol(asyncio.Protocol):
             dict.update(extra)
         self._msgID = self._msgID + 1
         packet = json.dumps(dict)
-        self.sendRequest(packet)
+        self.sendRequest(packet, msg_id)
 
         return str(msg_id)
 
@@ -113,7 +116,7 @@ class ICProtocol(asyncio.Protocol):
         )
         self._transport.write(request.encode())
 
-    def sendRequest(self, request: str) -> None:
+    def sendRequest(self, request: str, msg_id: str = None) -> None:
         """Either send the request to the wire or queue it for later."""
 
         # IntelliCenter seems to struggle to parse requests coming too fast
@@ -126,10 +129,11 @@ class ICProtocol(asyncio.Protocol):
 
         if self._out_pending == 1:
             # nothing else in progress, we can transmit the packet
+            self._inflight = msg_id
             self._writeToTransport(request)
         else:
             # there is already something on the wire, let's queue the request
-            self._out_queue.put(request)
+            self._out_queue.put((request, msg_id))
 
     def responseReceived(self) -> None:
         """Handle the flow control part of a received rsponse."""
@@ -138,8 +142,10 @@ class ICProtocol(asyncio.Protocol):
         # so, if we have a pending request in the queue
         # we can write it to our transport
         if not self._out_queue.empty():
-            request = self._out_queue.get()
+            request, self._inflight = self._out_queue.get()
             self._writeToTransport(request)
+        else:
+            self._inflight = None
         # no matter what, we have now one less request pending
         if self._out_pending:
             self._out_pending -= 1
@@ -170,9 +176,9 @@ class ICProtocol(asyncio.Protocol):
             msg = json.loads(message)
 
             # with a minimum of a messageID and a command
-            # NOTE: there seems to be a bug in IntelliCenter where
-            # the message_id is different from the one matching the request
-            # if an error occurred.. therefore the message_id is not really used
+            # NOTE: IntelliCenter answers an error with a messageID of its own
+            # instead of the request's: the controller then relies on the
+            # request the answer is for (answering)
 
             msg_id = msg["messageID"]
             command = msg["command"]
@@ -181,12 +187,16 @@ class ICProtocol(asyncio.Protocol):
             # the response field is only present when the message is a response to
             # a request (as opposed to a 'notification')
             # if so, we also not that a response was received
+            answering = None
             if response:
+                answering = self._inflight
                 self.lastResponse = time.monotonic()
                 self.responseReceived()
 
             # let's pass our message back to the controller for handling its semantic...
-            self._controller.receivedMessage(msg_id, command, response, msg)
+            self._controller.receivedMessage(
+                msg_id, command, response, msg, answering=answering
+            )
 
         except Exception as err:
             _LOGGER.error(f"PROTOCOL: exception while receiving message {err}")

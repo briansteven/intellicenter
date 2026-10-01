@@ -9,6 +9,9 @@ SETUP_TIMEOUT = 30
 # seconds the IntelliCenter may stay silent while a config flow checks it
 FLOW_TIMEOUT = 15
 
+# seconds the IntelliCenter has to answer a command (switch, setting...)
+COMMAND_TIMEOUT = 10
+
 
 def update_signal(entry_id: str) -> str:
     """Return the dispatcher signal for changes to a system's objects."""

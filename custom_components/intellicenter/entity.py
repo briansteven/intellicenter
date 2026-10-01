@@ -10,12 +10,13 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, UnitOfTemperature
 from homeassistant.core import callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, dispatcher
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 from yarl import URL
 
-from .const import DOMAIN, connection_signal, update_signal
+from .const import COMMAND_TIMEOUT, DOMAIN, connection_signal, update_signal
 from .pyintellicenter import (
     BODY_TYPE,
     CHEM_TYPE,
@@ -23,6 +24,7 @@ from .pyintellicenter import (
     PUMP_TYPE,
     SNAME_ATTR,
     STATUS_ATTR,
+    CommandError,
     ModelController,
     PoolObject,
 )
@@ -244,11 +246,52 @@ class PoolEntity(Entity):
 
         return attributes
 
+    async def async_request_changes(self, changes: dict) -> None:
+        """Make changes (key:value pairs) to the object, raising if they fail.
+
+        The IntelliCenter answers each change; one it refuses, doesn't answer
+        in time, or can't receive (no connection) raises an error that Home
+        Assistant shows, instead of the change being silently lost. The new
+        values themselves arrive as updates.
+        """
+        poolObject = self._poolObject
+        placeholders = {"name": poolObject.sname or poolObject.objnam}
+        try:
+            await self._controller.requestChangesAndWait(
+                poolObject.objnam, changes, COMMAND_TIMEOUT
+            )
+        except CommandError as err:
+            _LOGGER.warning(
+                f"the IntelliCenter refused {changes} for {poolObject.objnam}"
+                f" (error {err.errorCode})"
+            )
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_refused",
+                translation_placeholders={**placeholders, "code": str(err.errorCode)},
+            ) from err
+        except TimeoutError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_timeout",
+                translation_placeholders={
+                    **placeholders,
+                    "seconds": str(COMMAND_TIMEOUT),
+                },
+            ) from err
+        except ConnectionError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="not_connected",
+                translation_placeholders=placeholders,
+            ) from err
+
     def requestChanges(self, changes: dict) -> None:
         """Request changes as key:value pairs to the associated Pool object.
 
-        We don't wait for the response: whatever changes were requested will be
-        reflected as an update if successful.
+        Fire and forget, usable from any thread: whatever changes were requested
+        will be reflected as an update if successful (a refusal is only
+        logged). Commands use async_request_changes instead.
 
         The connection to the system belongs to the event loop and asyncio
         transports are not thread safe, so a request made from any other thread

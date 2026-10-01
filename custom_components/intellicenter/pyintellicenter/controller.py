@@ -291,7 +291,7 @@ class BaseController:
             msg_id = self._protocol.sendCmd(cmd, extra)
             self._requests[msg_id] = future
         elif future:
-            future.set_exception(Exception("controller disconnected"))
+            future.set_exception(ConnectionError("controller disconnected"))
 
         return future
 
@@ -304,6 +304,25 @@ class BaseController:
             {"objectList": [{"objnam": objnam, "params": changes}]},
             waitForResponse=waitForResponse,
         )
+
+    async def requestChangesAndWait(
+        self, objnam: str, changes: dict, timeout: float
+    ) -> dict:
+        """Submit a change for a given object and wait for the system's answer.
+
+        Raises CommandError if the system refuses the change, TimeoutError if
+        it doesn't answer within timeout seconds, and ConnectionError if there
+        is no connection (or it is lost meanwhile).
+        """
+        if not self._protocol:
+            raise ConnectionError(f"not connected to {self._host}")
+        request = self.requestChanges(objnam, changes)
+        try:
+            async with asyncio.timeout(timeout):
+                return await request
+        finally:
+            # (a timeout cancels the request: stop tracking it)
+            self._forget(request)
 
     async def getAllObjects(self, attributeList: list):
         """Return the values of given attributes for all objects in the system."""
@@ -347,15 +366,34 @@ class BaseController:
         """Return the current 'configuration' of the system."""
         return self.getQuery("GetConfiguration")
 
-    def receivedMessage(self, msg_id: str, command: str, response: str, msg: dict):
+    def receivedMessage(
+        self,
+        msg_id: str,
+        command: str,
+        response: str,
+        msg: dict,
+        answering: Optional[str] = None,
+    ):
         """Handle the callback for a incoming message.
 
         msd_id is the id of the incoming message
         response is the success (200) or error code or None (if this was a notification)
         msg is the while message as a dictionary (parsing of the JSON object)
+        answering is the id of the request on the wire when a response arrived
         """
 
         future = self._requests.pop(msg_id, 0)
+
+        if (
+            future == 0
+            and response not in (None, "200")
+            and answering is not None
+            and answering in self._requests
+        ):
+            # the system answers an error with a messageID of its own; only one
+            # request is on the wire at a time, so the error is that request's
+            _LOGGER.debug(f"error {response} ({msg_id}) answers request {answering}")
+            future = self._requests.pop(answering)
 
         # here future can be either:
         #  - 0 if there was no corresponding request matching this response
@@ -376,6 +414,9 @@ class BaseController:
                     future.set_result(msg)
                 else:
                     future.set_exception(CommandError(response))
+            elif response not in (None, "200"):
+                # nobody waits for the answer: at least say so
+                _LOGGER.warning(f"the system refused a request ({response}): {msg}")
             else:
                 _LOGGER.debug(f"ignoring response for msg_id {msg_id}")
         elif response is None or response == "200":

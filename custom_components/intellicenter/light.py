@@ -130,7 +130,7 @@ class PoolLight(PoolEntity, LightEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the light."""
-        self.requestChanges({STATUS_ATTR: "OFF"})
+        await self.async_request_changes({STATUS_ATTR: "OFF"})
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light."""
@@ -143,7 +143,7 @@ class PoolLight(PoolEntity, LightEntity):
             if new_use:
                 changes[ACT_ATTR] = new_use
 
-        self.requestChanges(changes)
+        await self.async_request_changes(changes)
 
     def isUpdated(self, updates: dict[str, dict[str, str]]) -> bool:
         """Return true if the entity is updated by the updates from Intellicenter."""
