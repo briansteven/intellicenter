@@ -12,7 +12,6 @@ from homeassistant.core import HomeAssistant
 
 from .entity import PoolEntity
 from .pyintellicenter import (
-    ACT_ATTR,
     BODY_TYPE,
     CHEM_TYPE,
     CIRCUIT_TYPE,
@@ -31,10 +30,10 @@ from .pyintellicenter import (
     SERVICE_ATTR,
     STATUS_ATTR,
     SYSTEM_TYPE,
-    VACFLO_ATTR,
     ModelController,
     PoolObject,
 )
+from .schedule import ScheduleRunning
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,17 +62,7 @@ async def async_setup_entry(
         elif obj.objtype == HEATER_TYPE:
             sensors.append(HeaterBinarySensor(entry, controller, obj))
         elif obj.objtype == SCHED_TYPE:
-            sensors.append(
-                PoolBinarySensor(
-                    entry,
-                    controller,
-                    obj,
-                    attribute_key=ACT_ATTR,
-                    name=f"{obj.sname or obj.objnam} schedule",
-                    enabled_by_default=False,
-                    extraStateAttributes={VACFLO_ATTR},
-                )
-            )
+            sensors.append(ScheduleRunning(entry, controller, obj))
         elif obj.objtype == PUMP_TYPE:
             sensors.append(PumpBinarySensor(entry, controller, obj))
         elif obj.objtype == SYSTEM_TYPE and obj[SERVICE_ATTR]:

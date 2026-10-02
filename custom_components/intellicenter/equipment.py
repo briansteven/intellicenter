@@ -10,7 +10,12 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
 
-from .entity import DEVICE_TYPES, get_device, object_device_identifier
+from .entity import (
+    DEVICE_TYPES,
+    get_device,
+    object_device_identifier,
+    object_device_name,
+)
 from .pyintellicenter import (
     BODY_ATTR,
     BODY_TYPE,
@@ -21,6 +26,7 @@ from .pyintellicenter import (
     FILTER_ATTR,
     HEATER_TYPE,
     OBJTYP_ATTR,
+    SCHED_TYPE,
     SNAME_ATTR,
     SUBTYP_ATTR,
     ModelController,
@@ -55,7 +61,7 @@ class EquipmentWatcher:
     reports, and in a comparison of its list of objects with the integration's
     every CHECK_INTERVAL and after reconnecting.
 
-    A renamed body, pump, heater or chemistry controller renames its device
+    A renamed body, pump, heater, chemistry controller or schedule renames its device
     right away (the names of other entities follow their objects already).
     """
 
@@ -117,7 +123,11 @@ class EquipmentWatcher:
             if obj is None:
                 continue
             if SNAME_ATTR in changes and obj.objtype in DEVICE_TYPES and obj.sname:
-                self._renameDevice(obj.objnam, obj.sname)
+                model = self._controller.model
+                # schedules with the same name are numbered: rename them all
+                renamed = model.getByType(SCHED_TYPE) if obj.objtype == SCHED_TYPE else [obj]
+                for each in renamed:
+                    self._renameDevice(each.objnam, object_device_name(each, model))
             if changes.keys() & set(SHAPING_ATTRIBUTES.get(obj.objtype, ())) or (
                 SUBTYP_ATTR in changes
             ):

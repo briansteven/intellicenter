@@ -9,13 +9,17 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 
 from .entity import PoolEntity, egg_timer_circuits
+from .schedule import DAYS, ScheduleDay, ScheduleDays, ScheduleOption, ScheduleSwitch
 from .pyintellicenter import (
     BODY_TYPE,
     CHEM_TYPE,
     CIRCUIT_TYPE,
+    DAY_ATTR,
     DNTSTP_ATTR,
     HEATER_ATTR,
     HTMODE_ATTR,
+    SCHED_TYPE,
+    SINGLE_ATTR,
     SUPER_ATTR,
     SYSTEM_TYPE,
     VACFLO_ATTR,
@@ -71,6 +75,26 @@ async def async_setup_entry(
                 PoolCircuit(entry, controller, obj, icon="mdi:alpha-g-box-outline"))
         elif obj.objtype == SYSTEM_TYPE:
             switches.append(VacationMode(entry, controller, obj))
+        elif obj.objtype == SCHED_TYPE:
+            switches.append(ScheduleSwitch(entry, controller, obj))
+            if obj[DAY_ATTR] is not None:
+                days = ScheduleDays()
+                for letter, day in DAYS:
+                    switches.append(
+                        ScheduleDay(entry, controller, obj, letter, day, days)
+                    )
+            if obj[VACFLO_ATTR] is not None:
+                switches.append(
+                    ScheduleOption(
+                        entry, controller, obj, VACFLO_ATTR, "Vacation only", "mdi:palm-tree"
+                    )
+                )
+            if obj[SINGLE_ATTR] is not None:
+                switches.append(
+                    ScheduleOption(
+                        entry, controller, obj, SINGLE_ATTR, "Run once", "mdi:numeric-1-box"
+                    )
+                )
 
     for circuit, body in egg_timer_circuits(controller.model):
         if circuit[DNTSTP_ATTR] in ("ON", "OFF"):

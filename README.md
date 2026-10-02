@@ -118,8 +118,17 @@ you move it.
   installed or not, so enable the ones you have; older firmware such as 1.064
   doesn't report it.
 - **Freeze protection**, **service mode** (on while the IntelliCenter is in
-  service or timeout mode), **vacation mode** (a switch, disabled by default)
-  and **schedules** (on while running, disabled by default).
+  service or timeout mode) and **vacation mode** (a switch, disabled by
+  default).
+- **Each schedule** is a device ("Pool schedule"): a switch that enables or
+  disables it, whose attributes tell what it does (circuit, days, start, stop,
+  heating, vacation only, run once, running). Its settings are disabled by
+  default: how it starts and stops (at a time, sunrise or sunset) and when, a
+  switch per day of the week, the heating it sets (off, don't change, or a
+  heater) and the temperature to heat to, vacation only, run once, and a
+  sensor that is on while it runs. Setting a start or stop time makes the
+  schedule start or stop at that time. Schedules are created and deleted at the
+  IntelliCenter or in the Pentair app.
 - **Alerts**: the number of alerts the IntelliCenter has raised and not
   cleared ("IntelliChlor 1: Communication Lost"...). Its `alerts` attribute
   lists them, oldest first, each with its `message`, the `equipment` it is

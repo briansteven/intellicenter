@@ -25,6 +25,7 @@ from .pyintellicenter import (
     FILTER_ATTR,
     HEATER_TYPE,
     PUMP_TYPE,
+    SCHED_TYPE,
     SNAME_ATTR,
     STATUS_ATTR,
     TIME_ATTR,
@@ -38,7 +39,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # object types that get a device of their own; every other object's entities
 # belong to the IntelliCenter's device
-DEVICE_TYPES = {BODY_TYPE, CHEM_TYPE, HEATER_TYPE, PUMP_TYPE}
+DEVICE_TYPES = {BODY_TYPE, CHEM_TYPE, HEATER_TYPE, PUMP_TYPE, SCHED_TYPE}
 
 MODELS = {
     BODY_TYPE: {"POOL": "Pool", "SPA": "Spa"},
@@ -65,6 +66,7 @@ DEFAULT_MODELS = {
     CHEM_TYPE: "Chemistry controller",
     HEATER_TYPE: "Heater",
     PUMP_TYPE: "Pump",
+    SCHED_TYPE: "Schedule",
 }
 
 
@@ -115,22 +117,54 @@ def object_device_identifier(entry: ConfigEntry, objnam: str) -> tuple[str, str]
     return (DOMAIN, f"{system_id(entry)}_{objnam}")
 
 
+def object_device_name(obj: PoolObject, model: PoolModel | None = None) -> str:
+    """Return the name of an object's device.
+
+    A schedule is named after what it's called in the IntelliCenter, which is
+    often the circuit's name ("Pool"): "Pool schedule". Schedules with the same
+    name (two for the pool) are numbered, in the IntelliCenter's order:
+    "Pool schedule 1", "Pool schedule 2".
+    """
+    if obj.objtype != SCHED_TYPE:
+        return obj.sname or obj.objnam
+
+    def schedule_name(schedule: PoolObject) -> str:
+        name = schedule.sname or schedule.objnam
+        if not name.lower().endswith("schedule"):
+            name = f"{name} schedule"
+        return name
+
+    name = schedule_name(obj)
+    if model is not None:
+        same = sorted(
+            other.objnam
+            for other in model.getByType(SCHED_TYPE)
+            if schedule_name(other).lower() == name.lower()
+        )
+        if len(same) > 1 and obj.objnam in same:
+            name = f"{name} {same.index(obj.objnam) + 1}"
+    return name
+
+
 def object_device_info(
-    entry: ConfigEntry, obj: PoolObject, system_device_id: str | None
+    entry: ConfigEntry,
+    obj: PoolObject,
+    system_device_id: str | None,
+    model: PoolModel | None = None,
 ) -> DeviceInfo:
-    """Return the device of a body, pump, heater or chemistry controller.
+    """Return the device of a body, pump, heater, chemistry controller or schedule.
 
     system_device_id: the registry ID of the IntelliCenter's device, which these
     are connected through.
     """
-    model = MODELS.get(obj.objtype, {}).get(obj.subtype) or DEFAULT_MODELS.get(
+    model_name = MODELS.get(obj.objtype, {}).get(obj.subtype) or DEFAULT_MODELS.get(
         obj.objtype
     )
     info = DeviceInfo(
         identifiers={object_device_identifier(entry, obj.objnam)},
         manufacturer="Pentair",
-        model=model,
-        name=obj.sname or obj.objnam,
+        model=model_name,
+        name=object_device_name(obj, model),
     )
     if VIA_DEVICE_ID:
         if system_device_id:
@@ -254,6 +288,7 @@ class PoolEntity(Entity):
                 entry,
                 deviceObject,
                 getattr(entry.runtime_data, "system_device_id", None),
+                controller.model,
             )
             if self._ownDevice
             else DeviceInfo(identifiers={(DOMAIN, system_id(entry))})

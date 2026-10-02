@@ -81,6 +81,10 @@ SUBTYP_ATTR = "SUBTYP"
 SUPER_ATTR = "SUPER"
 TIME_ATTR = "TIME"
 TIMOUT_ATTR = "TIMOUT"
+DAY_ATTR = "DAY"
+SINGLE_ATTR = "SINGLE"
+START_ATTR = "START"
+STOP_ATTR = "STOP"
 USE_ATTR = "USE"
 VACFLO_ATTR = "VACFLO"
 VER_ATTR = "VER"
@@ -360,21 +364,22 @@ REMOTE_ATTRIBUTES = {
 SCHED_ATTRIBUTES = {
     ACT_ATTR,  # (ON/OFF) ON is schedule is currently active
     CIRCUIT_ATTR,  # (objnam) the circuit controlled by this schedule
-    "DAY",  # the days this schedule run (example: 'MTWRFAU' for every day, 'AU' for weekends)
+    DAY_ATTR,  # the days this schedule run (example: 'MTWRFAU' for every day, 'AU' for weekends)
     "DNTSTP",  # 'ON' or 'OFF" means Don't Stop. Set to ON to never end...
-    HEATER_ATTR,  # set to a HEATER objnam is the schedule should trigger heating, '00000' for off, '00001' for Don't Change
+    HEATER_ATTR,  # a HEATER objnam to heat with, '00000' for off, 'HOLD' for Don't
+    # Change (which is written as '00001'; IC 3.014 refuses 'HOLD')
     HNAME_ATTR,  # same as objnam
     "HITMP",  # number but not sure
     LISTORD_ATTR,  # number likely used to order things in UI
     LOTMP_ATTR,  # number. when heater is set, that is the desired temperature
-    "SINGLE",  # 'ON' if the schedule is not to repeat
+    SINGLE_ATTR,  # 'ON' if the schedule is not to repeat
     SNAME_ATTR,  # the friendly name of the schedule
-    "START",  # start time mode
+    START_ATTR,  # start time mode
     # 'ABSTIM' means absolute and 'TIME' will be the startime
     # 'SRIS' means Sunrise, 'SSET' means Sunset
     STATIC_ATTR,  # (ON/OFF) not sure, only seen 'OFF'
-    STATUS_ATTR,  # 'ON' if schedule is active, 'OFF' otherwise
-    "STOP",  # stop time mode ('ABSTIME','SRIS' or 'SSET')
+    STATUS_ATTR,  # 'ON' if the schedule is enabled, 'OFF' otherwise (ACT: running)
+    STOP_ATTR,  # stop time mode ('ABSTIME','SRIS' or 'SSET')
     TIME_ATTR,  # time the schedule starts in 'HH,MM,SS' format (24h clock)
     TIMOUT_ATTR,  # time the schedule stops in 'HH,MM,SS' format (24h clock)
     VACFLO_ATTR,  # (ON/OFF) 'ON' if schedule only applies to Vacation Mode

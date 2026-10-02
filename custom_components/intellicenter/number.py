@@ -29,6 +29,7 @@ except ImportError:  # older Home Assistant releases without UnitOfRatio
     )
 
 from .entity import PoolEntity, egg_timer_circuits
+from .schedule import ScheduleHeatTo, schedules
 from .pyintellicenter import (
     ALK_ATTR,
     BODY_ATTR,
@@ -36,6 +37,7 @@ from .pyintellicenter import (
     CHEM_TYPE,
     CIRCUIT_ATTR,
     CYACID_ATTR,
+    LOTMP_ATTR,
     MAX_ATTR,
     MAXF_ATTR,
     MIN_ATTR,
@@ -159,6 +161,10 @@ async def async_setup_entry(
 
     for circuit, body in egg_timer_circuits(controller.model):
         numbers.append(EggTimer(entry, controller, circuit, body))
+
+    for schedule in schedules(controller.model):
+        if schedule[LOTMP_ATTR] is not None:
+            numbers.append(ScheduleHeatTo(entry, controller, schedule))
 
     async_add_entities(numbers)
 

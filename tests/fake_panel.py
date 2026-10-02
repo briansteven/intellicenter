@@ -219,11 +219,23 @@ DEFAULT_OBJECTS = {
         "PARENT": "00000",
         "SOURCE": "78",
     },
+    # every day from sunrise to sunset (TIME, TIMOUT: today's), heating left as
+    # it is ("HOLD", written as "00001")
     "SCH01": {
         "OBJTYP": "SCHED",
         "SNAME": "Pool",
         "ACT": "ON",
+        "STATUS": "ON",
+        "CIRCUIT": "C0006",
+        "DAY": "MTWRFAU",
+        "START": "SRIS",
+        "STOP": "SSET",
+        "TIME": "06,49,00",
+        "TIMOUT": "18,35,00",
+        "HEATER": "HOLD",
+        "LOTMP": "78",
         "VACFLO": "OFF",
+        "SINGLE": "OFF",
     },
     # a cover object as IC 1.064 defines one, installed or not: no position
     "CVR01": {
@@ -247,6 +259,10 @@ class FakePanel:
         self.response_delay = 0  # seconds to wait before answering each request
         self.refuse_changes = {}  # objnam: error code to answer its changes with
         self.refuse_conditions = set()  # conditions GetParamList answers with an error
+        # when True, the NotifyList following a change is held until released
+        # (the real panel can report a change after answering the next request)
+        self.hold_notify = False
+        self._held = []
         self.requests = []  # every request received, in order
         self.connections = 0
         self._server = None
@@ -306,6 +322,12 @@ class FakePanel:
         """Clear an alert like IC 3.x: delete its object and push that."""
         del self.objects[objnam]
         self.push_write_param_list({"deleted": [objnam]})
+
+    def release_notify(self):
+        """Send the notifications held back (see hold_notify)."""
+        held, self._held = self._held, []
+        for message in held:
+            self._broadcast(message)
 
     def push_write_param_list(self, *items: dict):
         """Push a WriteParamList with the given items (changes, created, deleted)."""
@@ -397,17 +419,32 @@ class FakePanel:
                             "response": code,
                         }
                     ]
+            for item in request["objectList"]:
+                obj = self.objects[item["objnam"]]
+                if obj.get("OBJTYP") == "SCHED" and item["params"].get("HEATER") == "HOLD":
+                    # IC 3.014: "don't change" reads HOLD but is written 00001
+                    return [
+                        {"command": "SetParamList", "messageID": msg_id, "response": "400"}
+                    ]
             notify = []
             for item in request["objectList"]:
-                self.objects[item["objnam"]].update(item["params"])
-                notify.append({"objnam": item["objnam"], "params": item["params"]})
+                params = dict(item["params"])
+                obj = self.objects[item["objnam"]]
+                if obj.get("OBJTYP") == "SCHED" and params.get("HEATER") == "00001":
+                    params["HEATER"] = "HOLD"
+                obj.update(params)
+                notify.append({"objnam": item["objnam"], "params": params})
+            pushed = {
+                "command": "NotifyList",
+                "messageID": str(uuid.uuid4()),
+                "objectList": notify,
+            }
+            if self.hold_notify:
+                self._held.append(pushed)
+                return [{"command": "SetParamList", "messageID": msg_id, "response": "200"}]
             return [
                 {"command": "SetParamList", "messageID": msg_id, "response": "200"},
-                {
-                    "command": "NotifyList",
-                    "messageID": str(uuid.uuid4()),
-                    "objectList": notify,
-                },
+                pushed,
             ]
 
         return [

@@ -50,9 +50,11 @@ async def test_light_effects(hass: HomeAssistant, integration) -> None:
     assert "Caribbean" in effects
 
 
-async def test_schedules_are_disabled_by_default(hass: HomeAssistant, integration) -> None:
-    """Schedule sensors exist, disabled until the user enables them."""
-    entity = er.async_get(hass).async_get("binary_sensor.test_pool_pool_schedule")
+async def test_schedule_running_is_disabled_by_default(
+    hass: HomeAssistant, integration
+) -> None:
+    """A schedule's running sensor exists, disabled until the user enables it."""
+    entity = er.async_get(hass).async_get("binary_sensor.pool_schedule_running")
     assert entity is not None
     assert entity.disabled_by is er.RegistryEntryDisabler.INTEGRATION
 

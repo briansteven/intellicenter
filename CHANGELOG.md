@@ -4,6 +4,29 @@ Changes in briansteven/intellicenter since dwradcliffe/intellicenter v2.0.0.
 Versions 2.x are drop-in replacements for dwradcliffe's (with the water heater
 state change in 2.2.0); 3.0.0 makes this an independent version.
 
+## 3.7.0
+
+### Schedules
+
+Each schedule is now a device ("Pool schedule"), and can be changed from Home
+Assistant:
+
+- A switch enables or disables the schedule. Its attributes tell what the
+  schedule does: circuit, days, start, stop, heating, vacation only, run once,
+  running.
+- Its settings (disabled by default, enable the ones you want in Settings >
+  Entities): how it starts and how it stops (at a time, at sunrise or at
+  sunset) and when (setting a time makes it start or stop at that time), a
+  switch per day of the week, the heating it sets (off, don't change, or a
+  heater) and the temperature to heat to, vacation only and run once.
+- The sensor that is on while the schedule runs moved to the schedule's
+  device (its entity ID is kept), named "Running".
+- Schedules with the same name (two for the pool) are numbered: "Pool
+  schedule 1", "Pool schedule 2".
+
+Schedules are still created and deleted at the IntelliCenter or in the Pentair
+app.
+
 ## 3.6.0
 
 ### Covers disabled by default

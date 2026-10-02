@@ -53,6 +53,9 @@
     },
     "not_connected": {
       "message": "Not connected to the IntelliCenter: {name} wasn't changed."
+    },
+    "schedule_without_days": {
+      "message": "A schedule runs at least one day: turn {name} off instead."
     }
   }
 }
