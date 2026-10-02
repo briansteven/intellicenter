@@ -4,6 +4,36 @@ Changes in briansteven/intellicenter since dwradcliffe/intellicenter v2.0.0.
 Versions 2.x are drop-in replacements for dwradcliffe's (with the water heater
 state change in 2.2.0); 3.0.0 makes this an independent version.
 
+## 3.6.0
+
+### Covers disabled by default
+
+Firmware 3.x reports a position for every cover object, whether a cover is
+installed or not, so 3.x systems got "Cover 1" and "Cover 2" entities they
+don't have. Covers are now created disabled: enable yours in Settings >
+Entities. Cover entities created by an earlier version stay as they are:
+disable or delete the ones you don't have.
+
+### IntelliChem and IntelliChlor placeholders
+
+After the IntelliCenter restarts, it shows placeholders until the IntelliChem
+has reported (about 15 minutes after the pump starts): pH 0.00, ORP 0,
+saturation index 1.27. The IntelliChlor's salt shows 0 until it has reported.
+These were recorded as real readings; they are now unknown (the saturation
+index until it moves off the placeholder, as firmware 3.x sends the pH without
+it).
+
+### Saturation index on firmware 3.x
+
+Firmware 3.x doesn't report changes to the saturation index, so Home
+Assistant kept showing an old value. It is now read again 10 seconds after
+the IntelliChem's other values change, and shortly after connecting.
+
+### Faulty temperature sensors
+
+Firmware 3.x flags a faulty or missing air, water or solar sensor (its value
+then is meaningless): the sensor is unavailable while flagged.
+
 ## 3.5.0
 
 ### Alerts (IntelliCenter firmware 3.x)

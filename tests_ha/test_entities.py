@@ -78,7 +78,25 @@ def objects_with_covers():
 
 @pytest.mark.parametrize("panel_objects", [objects_with_covers()])
 async def test_cover_position(hass: HomeAssistant, integration, panel) -> None:
-    """A cover that reports its position shows it (read-only)."""
+    """A cover that reports its position shows it (read-only), once enabled.
+
+    IC 3.x reports a position for every cover object, installed or not, so
+    covers are disabled by default.
+    """
+    registry = er.async_get(hass)
+    entries = [
+        entry
+        for entry in er.async_entries_for_config_entry(registry, integration.entry_id)
+        if entry.domain == "cover"
+    ]
+    assert [entry.entity_id for entry in entries] == ["cover.test_pool_cover_1"]
+    assert entries[0].disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    assert hass.states.async_entity_ids("cover") == []
+
+    registry.async_update_entity("cover.test_pool_cover_1", disabled_by=None)
+    assert await hass.config_entries.async_reload(integration.entry_id)
+    await hass.async_block_till_done()
+
     assert hass.states.async_entity_ids("cover") == ["cover.test_pool_cover_1"]
     state = hass.states.get("cover.test_pool_cover_1")
     assert state.state == "closed"

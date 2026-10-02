@@ -95,11 +95,14 @@ you move it.
   when it reports them, from its status otherwise), its power (rounded to 25 W),
   speed and flow when it reports them, and its speed setting for each circuit
   it runs for (disabled by default).
-- **IntelliChlor**: salt level, superchlorinate switch and duration, and the
-  output setting for each body it serves.
+- **IntelliChlor**: salt level (unknown while the IntelliChlor reports none),
+  superchlorinate switch and duration, and the output setting for each body it
+  serves.
 - **IntelliChem**: pH, ORP, saturation index, the levels of both tanks (0 to 6,
   as the IntelliChem shows them), its pH and ORP alarms, and its settings: pH and ORP targets, and the alkalinity, calcium
   hardness and cyanuric acid values the saturation index is computed from.
+  After the IntelliCenter restarts, pH, ORP and saturation index are unknown
+  until the IntelliChem reports (about 15 minutes after the pump starts).
 - **Lights and light shows**: on/off, with color effects for IntelliBrite,
   MagicStream and GloBrite lights.
 - **Egg timers** (disabled by default): for each body of water, light, light
@@ -108,9 +111,12 @@ you move it.
   runs until turned off). A body's are on the body's device.
 - **Featured circuits and circuit groups** (for example "Cleaner" or "Spa
   Blower"): switches.
-- **Air, water and solar sensors.**
-- **Pool and spa covers**, when the IntelliCenter reports their position
-  (read-only; older firmware such as 1.064 doesn't report it).
+- **Air, water and solar sensors** (unavailable while firmware 3.x reports the
+  sensor as faulty or missing).
+- **Pool and spa covers** (disabled by default), when the IntelliCenter reports
+  their position (read-only). Firmware 3.x reports one for every cover object,
+  installed or not, so enable the ones you have; older firmware such as 1.064
+  doesn't report it.
 - **Freeze protection**, **service mode** (on while the IntelliCenter is in
   service or timeout mode), **vacation mode** (a switch, disabled by default)
   and **schedules** (on while running, disabled by default).

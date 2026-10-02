@@ -10,10 +10,13 @@ import time
 from typing import Optional
 
 from .attributes import (
+    CHEM_TYPE,
     MODE_ATTR,
     OBJTYP_ATTR,
     PARENT_ATTR,
+    PHVAL_ATTR,
     PROPNAME_ATTR,
+    QUALTY_ATTR,
     SNAME_ATTR,
     STATUS_TYPE,
     SUBTYP_ATTR,
@@ -446,6 +449,30 @@ class BaseController:
 # -------------------------------------------------------------------------------------
 
 
+def intelliChemReported(obj) -> bool:
+    """Return False while an IntelliChem shows placeholders (pH 0.00).
+
+    Until the IntelliChem has reported (after the IntelliCenter restarts, about
+    15 minutes after the pump starts), the IntelliCenter shows pH 0.00, ORP 0
+    and saturation index 1.27. A pH of 0 can't be a real reading.
+    """
+    value = obj[PHVAL_ATTR]
+    if value is None:
+        return True  # no pH to judge by
+    try:
+        return float(value) > 0
+    except (TypeError, ValueError):
+        return False
+
+
+# the saturation index (QUALTY) the IntelliCenter shows until the IntelliChem has
+# reported (seen on IC 1.064 and IC 3.014)
+PLACEHOLDER_QUALITY = "1.27"
+
+# IC 3.x doesn't push the saturation index (QUALTY) the IntelliChem computes:
+# it is read again this many seconds after the IntelliChem's other values change
+QUALITY_REFRESH_DELAY = 10
+
 # what is kept of an alert (an object of type STATUS): its message (SNAME), the
 # object it is about (PARENT) and when it was raised (TIME, seconds since 1970)
 ALERT_KEYS = [OBJTYP_ATTR, SNAME_ATTR, PARENT_ATTR, TIME_ATTR, MODE_ATTR]
@@ -481,6 +508,16 @@ class ModelController(BaseController):
         # (objnam, attributes, or None when deleted)
         self._alertPushes: Optional[list] = None
 
+        # objnam: task reading an IntelliChem's saturation index again
+        self._qualityRefreshes: dict[str, asyncio.Task] = {}
+        # per IntelliChem (objnam), see qualityCurrent: whether its saturation
+        # index is a real value, the last real one, the placeholder to wait past
+        # (None: none) and whether its pH was real when last seen
+        self._qualityCurrent: dict[str, bool] = {}
+        self._qualityReal: dict[str, Optional[str]] = {}
+        self._qualityPlaceholder: dict[str, Optional[str]] = {}
+        self._qualityReported: dict[str, bool] = {}
+
     @property
     def model(self) -> PoolModel:
         """Return the model this controller manages."""
@@ -492,13 +529,122 @@ class ModelController(BaseController):
         return dict(self._alerts)
 
     @property
+    def _firmwareMajor(self) -> Optional[int]:
+        return self._systemInfo.firmwareMajor if self._systemInfo else None
+
+    @property
     def supportsAlerts(self) -> bool:
         """Return True if the system reports its alerts as they come and go.
 
         IC 3.x pushes them; older firmware (IC 1.064) doesn't.
         """
-        major = self._systemInfo.firmwareMajor if self._systemInfo else None
+        major = self._firmwareMajor
         return major is not None and major >= 3
+
+    @property
+    def pushesQuality(self) -> bool:
+        """Return True if the system pushes the saturation index as it changes.
+
+        IC 1.064 does; IC 3.x doesn't (it is read again instead).
+        """
+        major = self._firmwareMajor
+        return major is None or major < 3
+
+    def qualityCurrent(self, objnam: str) -> bool:
+        """Return True if an IntelliChem's saturation index is a real value.
+
+        While the pH is the placeholder (0.00) it isn't. When the pH turns real,
+        the saturation index can still be the placeholder (firmware 3.x sends
+        the pH without it): it is real once it differs from the value it had
+        while the pH was 0, unless that was the last real value (the pH dropped
+        out, the saturation index stayed). With no history (just connected),
+        the placeholder to wait past is the usual one, 1.27.
+        """
+        return self._qualityCurrent.get(objnam, False)
+
+    def _followQuality(self, received: list, updates: dict[str, dict]) -> None:
+        """Follow qualityCurrent from what was received (applied already).
+
+        A change of it is reported as an update of QUALTY, so that what shows
+        the saturation index is refreshed.
+        """
+        for item in received:
+            obj = self._model[item.get("objnam")]
+            if obj is None or obj.objtype != CHEM_TYPE or obj.subtype != "ICHEM":
+                continue
+            objnam = obj.objnam
+            value = obj[QUALTY_ATTR]
+            current = self._qualityCurrent.get(objnam, False)
+            if not intelliChemReported(obj):
+                if self._qualityReported.get(objnam, True):
+                    # the pH just went (or is) 0: what is held now is the
+                    # placeholder, unless it's the last real value
+                    real = self._qualityReal.get(objnam)
+                    self._qualityPlaceholder[objnam] = (
+                        None if real is not None and value == real else value
+                    )
+                self._qualityReported[objnam] = False
+                new = False
+            else:
+                self._qualityReported[objnam] = True
+                placeholder = self._qualityPlaceholder.get(objnam, PLACEHOLDER_QUALITY)
+                new = value is not None and value != placeholder
+                if new:
+                    self._qualityReal[objnam] = value
+                    self._qualityPlaceholder[objnam] = None
+            if new != current:
+                self._qualityCurrent[objnam] = new
+                updates.setdefault(objnam, {})[QUALTY_ATTR] = value
+
+    def _refreshQualityLater(self, updates: dict[str, dict[str, str]]) -> None:
+        """Read IntelliChems' saturation index again if their values changed."""
+        if self.pushesQuality:
+            return
+        for objnam, changes in updates.items():
+            obj = self._model[objnam]
+            if (
+                obj is None
+                or obj.objtype != CHEM_TYPE
+                or obj.subtype != "ICHEM"
+                or QUALTY_ATTR in changes
+                or objnam in self._qualityRefreshes
+            ):
+                continue
+            self._qualityRefreshes[objnam] = asyncio.ensure_future(
+                self._refreshQuality(objnam)
+            )
+
+    async def _refreshQuality(self, objnam: str) -> None:
+        try:
+            # changes come a few at a time (and the IntelliChem may need a
+            # moment to compute it): wait a little, then read it once
+            await asyncio.sleep(QUALITY_REFRESH_DELAY)
+            # a change from now on may come after the answer: it gets a read
+            # of its own
+            if self._qualityRefreshes.get(objnam) is asyncio.current_task():
+                del self._qualityRefreshes[objnam]
+            result = await self.sendCmd(
+                "GetParamList",
+                {
+                    "condition": "",
+                    "objectList": [{"objnam": objnam, "keys": [QUALTY_ATTR]}],
+                },
+            )
+            self._applyUpdates(result.get("objectList", []))
+        except asyncio.CancelledError:
+            raise
+        except Exception as err:  # noqa: BLE001 - next change tries again
+            _LOGGER.debug(f"cannot read {objnam}'s {QUALTY_ATTR}: {err!r}")
+        finally:
+            if self._qualityRefreshes.get(objnam) is asyncio.current_task():
+                del self._qualityRefreshes[objnam]
+
+    def stop(self):
+        """Stop all activities from this controller and disconnect."""
+        for task in self._qualityRefreshes.values():
+            task.cancel()
+        self._qualityRefreshes.clear()
+        super().stop()
 
     def _setAlerts(self, alerts: dict[str, dict[str, str]]) -> None:
         """Replace the active alerts, telling the callback if they changed."""
@@ -586,6 +732,12 @@ class ModelController(BaseController):
             else:
                 self._setAlerts({})
 
+            # the saturation index read now may predate the pH (see
+            # qualityCurrent): read it again shortly
+            self._refreshQualityLater(
+                {obj.objnam: {} for obj in self._model.getByType(CHEM_TYPE, "ICHEM")}
+            )
+
         except Exception:
             _LOGGER.debug("failed to load the model", exc_info=True)
             raise
@@ -605,7 +757,9 @@ class ModelController(BaseController):
         # the system reports an attribute it has no value for by echoing its name
         # ("ACT": "ACT"); drop those like the initial load does instead of storing
         # the attribute name as if it were its value
-        updates = self._model.processUpdates(prune(changesAsList))
+        received = prune(changesAsList)
+        updates = self._model.processUpdates(received)
+        self._followQuality(received, updates)
 
         # if an update happens on the SYSTEM object
         # also applies it to our cached SystemInfo
@@ -623,7 +777,8 @@ class ModelController(BaseController):
 
         try:
             # apply the changes back to the model
-            self._applyUpdates(changes)
+            updates = self._applyUpdates(changes)
+            self._refreshQualityLater(updates)
 
         except Exception as err:
             _LOGGER.error(f"CONTROLLER: receivedNotifyList {err}")
@@ -641,7 +796,7 @@ class ModelController(BaseController):
         for item in objectList:
             try:
                 if "changes" in item:
-                    self._applyUpdates(item["changes"])
+                    self._refreshQualityLater(self._applyUpdates(item["changes"]))
                 for created in prune(item.get("created", [])):
                     params = created.get("params", {})
                     if params.get(OBJTYP_ATTR) == STATUS_TYPE:

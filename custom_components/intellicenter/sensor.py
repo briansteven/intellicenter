@@ -41,6 +41,7 @@ from .pyintellicenter import (
     PARENT_ATTR,
     PHTNK_ATTR,
     PHVAL_ATTR,
+    PROBE_ATTR,
     PUMP_TYPE,
     PWR_ATTR,
     QUALTY_ATTR,
@@ -53,6 +54,7 @@ from .pyintellicenter import (
     TIME_ATTR,
     ModelController,
     PoolObject,
+    intelliChemReported,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -75,7 +77,12 @@ async def async_setup_entry(
     obj: PoolObject
     for obj in controller.model.objectList:
         if obj.objtype == SENSE_TYPE:
-            add(obj, device_class=SensorDeviceClass.TEMPERATURE, attribute_key=SOURCE_ATTR)
+            add(
+                obj,
+                TemperatureProbeSensor,
+                device_class=SensorDeviceClass.TEMPERATURE,
+                attribute_key=SOURCE_ATTR,
+            )
         elif obj.objtype == PUMP_TYPE:
             if obj[PWR_ATTR]:
                 add(
@@ -120,6 +127,7 @@ async def async_setup_entry(
                 if PHVAL_ATTR in obj.attributes:
                     add(
                         obj,
+                        IntelliChemReadingSensor,
                         unit_of_measurement="pH",
                         attribute_key=PHVAL_ATTR,
                         name="pH",
@@ -128,6 +136,7 @@ async def async_setup_entry(
                 if ORPVAL_ATTR in obj.attributes:
                     add(
                         obj,
+                        IntelliChemReadingSensor,
                         unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,
                         attribute_key=ORPVAL_ATTR,
                         name="ORP",
@@ -137,6 +146,7 @@ async def async_setup_entry(
                     # (balanced between -0.5 and +0.5)
                     add(
                         obj,
+                        SaturationIndexSensor,
                         attribute_key=QUALTY_ATTR,
                         name="Saturation index",
                         icon="mdi:scale-balance",
@@ -159,6 +169,7 @@ async def async_setup_entry(
                 if SALT_ATTR in obj.attributes:
                     add(
                         obj,
+                        SaltSensor,
                         unit_of_measurement=PARTS_PER_MILLION,
                         attribute_key=SALT_ATTR,
                         name="Salt",
@@ -224,6 +235,79 @@ class PoolSensor(PoolEntity, SensorEntity):
         if self._attr_device_class == SensorDeviceClass.TEMPERATURE:
             return self.pentairTemperatureSettings()
         return self._attr_native_unit_of_measurement
+
+
+class TemperatureProbeSensor(PoolSensor):
+    """A temperature sensor (air, water, solar) of the IntelliCenter.
+
+    IC 3.x reports a sensor it finds faulty (or that isn't connected) with
+    PROBE "ERR", while its value carries on with a meaningless number: the
+    sensor is unavailable then. (IC 1.064 doesn't flag it.)
+    """
+
+    @property
+    def available(self) -> bool:
+        """Return False while the IntelliCenter reports the sensor as faulty."""
+        return super().available and self._poolObject[PROBE_ATTR] != "ERR"
+
+    def isUpdated(self, updates: dict[str, dict[str, str]]) -> bool:
+        """Return true if the value or the sensor's state changed."""
+        return super().isUpdated(updates) or PROBE_ATTR in updates.get(
+            self._poolObject.objnam, {}
+        )
+
+
+class IntelliChemReadingSensor(PoolSensor):
+    """pH and ORP as the IntelliChem measures them, and its saturation index.
+
+    Until the IntelliChem has reported, which after the IntelliCenter restarts
+    is about 15 minutes after the pump starts, the IntelliCenter shows
+    placeholders: pH 0.00, ORP 0 and saturation index 1.27. A pH of 0 can't be
+    a real reading, so while the pH is 0 these values are unknown.
+    """
+
+    @property
+    def native_value(self):
+        """Return the value, None while the IntelliChem hasn't reported."""
+        if not intelliChemReported(self._poolObject):
+            return None
+        return super().native_value
+
+    def isUpdated(self, updates: dict[str, dict[str, str]]) -> bool:
+        """Return true if the value or the pH (which validates it) changed."""
+        return super().isUpdated(updates) or PHVAL_ATTR in updates.get(
+            self._poolObject.objnam, {}
+        )
+
+
+class SaturationIndexSensor(IntelliChemReadingSensor):
+    """The saturation index the IntelliChem computes.
+
+    Firmware 3.x sends the pH without it, so when the pH turns real the value
+    held can still be the placeholder: it is unknown until received again (see
+    ModelController.qualityCurrent).
+    """
+
+    @property
+    def native_value(self):
+        """Return the value, None until current."""
+        if not self._controller.qualityCurrent(self._poolObject.objnam):
+            return None
+        return super().native_value
+
+
+class SaltSensor(PoolSensor):
+    """The salt level the IntelliChlor measures.
+
+    It reads 0 until the IntelliChlor has reported (for a few minutes after the
+    IntelliCenter restarts, or while it can't reach the IntelliChlor): unknown.
+    """
+
+    @property
+    def native_value(self):
+        """Return the salt level, None when the IntelliChlor reports none."""
+        value = super().native_value
+        return None if value == 0 else value
 
 
 class TankLevelSensor(PoolSensor):

@@ -31,7 +31,8 @@ async def async_setup_entry(
 
     The IntelliCenter defines cover objects whether or not a cover is installed.
     Only those that report a position (POSIT) are covers Home Assistant can
-    show: older firmware (IC 1.064) reports none at all.
+    show: older firmware (IC 1.064) reports none at all. IC 3.x reports one for
+    every cover object, installed or not, so covers are disabled by default.
     """
     controller: ModelController = entry.runtime_data.controller
 
@@ -78,6 +79,7 @@ class PoolCover(PoolEntity, CoverEntity):
             poolObject,
             extraStateAttributes=[NORMAL_ATTR, POSIT_ATTR],
             icon="mdi:arrow-expand-horizontal",
+            enabled_by_default=False,
         )
 
     @property

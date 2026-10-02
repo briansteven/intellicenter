@@ -54,6 +54,7 @@ LSTTMP_ATTR = "LSTTMP"
 MODE_ATTR = "MODE"
 NORMAL_ATTR = "NORMAL"
 POSIT_ATTR = "POSIT"
+PROBE_ATTR = "PROBE"
 SERVICE_ATTR = "SERVICE"
 OBJTYP_ATTR = "OBJTYP"
 ORPTNK_ATTR = "ORPTNK"
@@ -387,7 +388,7 @@ SENSE_ATTRIBUTES = {
     MODE_ATTR,  # I've only seen 'OFF' so far
     "NAME",  # I've only seen '00000'
     PARENT_ATTR,  # the parent's objnam
-    "PROBE",  # the uncalibrated reading of the sensor
+    PROBE_ATTR,  # the uncalibrated reading of the sensor ("ERR": faulty, IC 3.x)
     SNAME_ATTR,  # friendly name
     SOURCE_ATTR,  # the calibrated reading of the sensor
     STATIC_ATTR,  # (ON/OFF) not sure, only seen 'ON'

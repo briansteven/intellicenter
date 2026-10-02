@@ -52,6 +52,7 @@ from .attributes import (
     PMPCIRC_TYPE,
     POSIT_ATTR,
     PRIM_ATTR,
+    PROBE_ATTR,
     PROPNAME_ATTR,
     PUMP_TYPE,
     PWR_ATTR,
@@ -89,6 +90,7 @@ from .controller import (
     ConnectionHandler,
     ModelController,
     SystemInfo,
+    intelliChemReported,
 )
 from .model import PoolModel, PoolObject
 
@@ -98,6 +100,7 @@ __all__ = [
     ConnectionHandler,
     ModelController,
     SystemInfo,
+    intelliChemReported,
     PoolModel,
     PoolObject,
     BODY_TYPE,
@@ -158,6 +161,7 @@ __all__ = [
     PHVAL_ATTR,
     POSIT_ATTR,
     PRIM_ATTR,
+    PROBE_ATTR,
     PROPNAME_ATTR,
     PWR_ATTR,
     QUALTY_ATTR,
