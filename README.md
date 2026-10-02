@@ -114,6 +114,11 @@ you move it.
 - **Freeze protection**, **service mode** (on while the IntelliCenter is in
   service or timeout mode), **vacation mode** (a switch, disabled by default)
   and **schedules** (on while running, disabled by default).
+- **Alerts**: the number of alerts the IntelliCenter has raised and not
+  cleared ("IntelliChlor 1: Communication Lost"...). Its `alerts` attribute
+  lists them, oldest first, each with its `message`, the `equipment` it is
+  about, `since` (when it was raised) and an `id`. Firmware 3.x only: older
+  firmware doesn't report alerts as they are raised and cleared.
 
 ### Connection
 

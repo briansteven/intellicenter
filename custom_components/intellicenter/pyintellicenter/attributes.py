@@ -14,6 +14,8 @@ REMBTN_TYPE = "REMBTN"
 REMOTE_TYPE = "REMOTE"
 SCHED_TYPE = "SCHED"
 SENSE_TYPE = "SENSE"
+# an alert: created when raised and deleted when cleared
+STATUS_TYPE = "STATUS"
 SYSTEM_TYPE = "SYSTEM"
 
 ACT_ATTR = "ACT"

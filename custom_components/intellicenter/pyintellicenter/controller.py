@@ -5,6 +5,7 @@ from asyncio import Future
 import contextlib
 from hashlib import blake2b
 import logging
+import re
 import time
 from typing import Optional
 
@@ -14,8 +15,10 @@ from .attributes import (
     PARENT_ATTR,
     PROPNAME_ATTR,
     SNAME_ATTR,
+    STATUS_TYPE,
     SUBTYP_ATTR,
     SYSTEM_TYPE,
+    TIME_ATTR,
     VER_ATTR,
 )
 from .model import PoolModel
@@ -66,6 +69,12 @@ class SystemInfo:
     def swVersion(self):
         """Return the software version of the system."""
         return self._sw_version
+
+    @property
+    def firmwareMajor(self) -> Optional[int]:
+        """Return the major version of the firmware ("IC: 3.014 , ..." -> 3)."""
+        match = re.match(r"\s*IC:\s*(\d+)\.", self._sw_version or "")
+        return int(match.group(1)) if match else None
 
     @property
     def usesMetric(self):
@@ -437,8 +446,18 @@ class BaseController:
 # -------------------------------------------------------------------------------------
 
 
+# what is kept of an alert (an object of type STATUS): its message (SNAME), the
+# object it is about (PARENT) and when it was raised (TIME, seconds since 1970)
+ALERT_KEYS = [OBJTYP_ATTR, SNAME_ATTR, PARENT_ATTR, TIME_ATTR, MODE_ATTR]
+
+
 class ModelController(BaseController):
-    """A controller creating and updating a PoolModel."""
+    """A controller creating and updating a PoolModel.
+
+    It also keeps the IntelliCenter's active alerts ("IntelliChlor 1:
+    Communication Lost"...): objects of type STATUS, read when connecting and
+    then pushed by the IntelliCenter as they are raised and cleared (IC 3.x).
+    """
 
     def __init__(
         self,
@@ -455,10 +474,74 @@ class ModelController(BaseController):
 
         self._updatedCallback = None
 
+        # objnam: attributes (ALERT_KEYS) of the active alerts
+        self._alerts: dict[str, dict[str, str]] = {}
+        self._alertsCallback = None
+        # while the alerts are being read: the alerts pushed meanwhile, in order
+        # (objnam, attributes, or None when deleted)
+        self._alertPushes: Optional[list] = None
+
     @property
     def model(self) -> PoolModel:
         """Return the model this controller manages."""
         return self._model
+
+    @property
+    def alerts(self) -> dict[str, dict[str, str]]:
+        """Return the active alerts: objnam -> SNAME (the message), PARENT, TIME..."""
+        return dict(self._alerts)
+
+    @property
+    def supportsAlerts(self) -> bool:
+        """Return True if the system reports its alerts as they come and go.
+
+        IC 3.x pushes them; older firmware (IC 1.064) doesn't.
+        """
+        major = self._systemInfo.firmwareMajor if self._systemInfo else None
+        return major is not None and major >= 3
+
+    def _setAlerts(self, alerts: dict[str, dict[str, str]]) -> None:
+        """Replace the active alerts, telling the callback if they changed."""
+        if alerts == self._alerts:
+            return
+        self._alerts = alerts
+        _LOGGER.debug(f"active alerts: {alerts}")
+        if self._alertsCallback:
+            self._alertsCallback(self, self.alerts)
+
+    async def _loadAlerts(self) -> None:
+        """Read the active alerts.
+
+        Alerts pushed while the list is read are applied on top of it: the list
+        may have been made before them.
+        """
+        self._alertPushes = []
+        try:
+            try:
+                result = await self.sendCmd(
+                    "GetParamList",
+                    {
+                        "condition": f"{OBJTYP_ATTR}={STATUS_TYPE}",
+                        "objectList": [{"objnam": "INCR", "keys": ALERT_KEYS}],
+                    },
+                )
+                alerts = {
+                    item["objnam"]: item["params"]
+                    for item in prune(result.get("objectList", []))
+                    if item.get("params", {}).get(OBJTYP_ATTR) == STATUS_TYPE
+                }
+            except CommandError as err:
+                # alerts are extra: a system refusing the query still works
+                _LOGGER.debug(f"cannot read the alerts (error {err.errorCode})")
+                alerts = {}
+            for objnam, params in self._alertPushes:
+                if params is None:
+                    alerts.pop(objnam, None)
+                else:
+                    alerts[objnam] = params
+        finally:
+            self._alertPushes = None
+        self._setAlerts(alerts)
 
     async def start(self):
         """Start the controller, fetch and start monitoring the model."""
@@ -497,6 +580,11 @@ class ModelController(BaseController):
             if query:
                 res = await self.sendCmd("RequestParamList", {"objectList": query})
                 self._applyUpdates(res["objectList"])
+
+            if self.supportsAlerts:
+                await self._loadAlerts()
+            else:
+                self._setAlerts({})
 
         except Exception:
             _LOGGER.debug("failed to load the model", exc_info=True)
@@ -540,14 +628,40 @@ class ModelController(BaseController):
         except Exception as err:
             _LOGGER.error(f"CONTROLLER: receivedNotifyList {err}")
 
-    def receivedWriteParamList(self, changes):
-        """Handle the response to a change requested on an object."""
+    def receivedWriteParamList(self, objectList):
+        """Handle the changes, creations and deletions the IntelliCenter pushes.
 
-        try:
-            self._applyUpdates(changes)
+        Each item of objectList holds "changes" (objects' new values, as after a
+        change requested on an object), "created" (new objects, with all their
+        attributes) or "deleted" (objnams). IC 3.x creates and deletes alerts
+        (objects of type STATUS) this way as they are raised and cleared.
+        """
 
-        except Exception as err:
-            _LOGGER.error(f"CONTROLLER: receivedWriteParamList {err}")
+        alerts = dict(self._alerts)
+        for item in objectList:
+            try:
+                if "changes" in item:
+                    self._applyUpdates(item["changes"])
+                for created in prune(item.get("created", [])):
+                    params = created.get("params", {})
+                    if params.get(OBJTYP_ATTR) == STATUS_TYPE:
+                        alert = {
+                            key: params[key] for key in ALERT_KEYS if key in params
+                        }
+                        alerts[created["objnam"]] = alert
+                        if self._alertPushes is not None:
+                            self._alertPushes.append((created["objnam"], alert))
+                    else:
+                        # other equipment is picked up by the equipment checks
+                        _LOGGER.debug(f"the system created {created}")
+                for objnam in item.get("deleted", []):
+                    if self._alertPushes is not None:
+                        self._alertPushes.append((objnam, None))
+                    if alerts.pop(objnam, None) is None:
+                        _LOGGER.debug(f"the system deleted {objnam}")
+            except Exception as err:
+                _LOGGER.error(f"CONTROLLER: receivedWriteParamList {err!r} in {item}")
+        self._setAlerts(alerts)
 
     def receivedSystemConfig(self, objectList):
         """Handle the response for a request for objects."""
@@ -570,7 +684,7 @@ class ModelController(BaseController):
             elif command == "NotifyList":
                 self.receivedNotifyList(msg["objectList"])
             elif command == "WriteParamList":
-                self.receivedWriteParamList(msg["objectList"][0]["changes"])
+                self.receivedWriteParamList(msg["objectList"])
             elif command == "SendParamList":
                 self.receivedSystemConfig(msg["objectList"])
             else:
@@ -616,6 +730,9 @@ class ConnectionHandler:
 
         if hasattr(controller, "_updatedCallback"):
             controller._updatedCallback = self.updated
+
+        if hasattr(controller, "_alertsCallback"):
+            controller._alertsCallback = self.alertsChanged
 
     @property
     def controller(self):
@@ -769,6 +886,13 @@ class ConnectionHandler:
 
         only invoked if the controller has a _updatedCallback attribute
         changes is expected to contain the list of modified objects
+        """
+        pass
+
+    def alertsChanged(self, controller: ModelController, alerts: dict):
+        """Handle the callback that the system's active alerts have changed.
+
+        alerts: objnam -> attributes (SNAME is the message) of every active alert
         """
         pass
 

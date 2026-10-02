@@ -48,8 +48,9 @@ class EquipmentWatcher:
     """Reload the integration when the IntelliCenter's equipment changes.
 
     Equipment added or removed, a circuit made featured (or not), a heater or
-    chlorinator assigned to other bodies: the entities are made from these at
-    setup, so the integration reloads (after SETTLE_DELAY) to pick them up.
+    chlorinator assigned to other bodies, a firmware update: the entities are
+    made from these at setup, so the integration reloads (after SETTLE_DELAY)
+    to pick them up.
     Changes show in the updates the IntelliCenter pushes for settings it
     reports, and in a comparison of its list of objects with the integration's
     every CHECK_INTERVAL and after reconnecting.
@@ -71,6 +72,7 @@ class EquipmentWatcher:
         self._controller = controller
         self._objectTypes = objectTypes
         self._signature = self._modelSignature()
+        self._firmware = self._firmwareVersion()
         self._unsubscribers: list[CALLBACK_TYPE] = []
         self._reloadTimer: CALLBACK_TYPE | None = None
         self.delay = SETTLE_DELAY
@@ -85,6 +87,10 @@ class EquipmentWatcher:
             )
             for obj in self._controller.model
         }
+
+    def _firmwareVersion(self) -> str | None:
+        info = self._controller.systemInfo
+        return info.swVersion if info else None
 
     @callback
     def async_start(self) -> None:
@@ -133,6 +139,14 @@ class EquipmentWatcher:
     async def async_check(self) -> None:
         """Compare the IntelliCenter's objects with the integration's."""
         if not self._controller.connected or self._reloadTimer:
+            return
+        if self._firmwareVersion() != self._firmware:
+            # what the IntelliCenter offers (alerts...) can depend on it, and its
+            # device shows the version
+            self._scheduleReload(
+                f"its firmware changed from {self._firmware} to"
+                f" {self._firmwareVersion()}"
+            )
             return
         try:
             objects = await self._controller.getAllObjects([OBJTYP_ATTR, SUBTYP_ATTR])

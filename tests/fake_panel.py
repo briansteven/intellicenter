@@ -15,11 +15,15 @@ to an unknown object gets a 404, an unknown command an "Error" 404.
 
 Like the real panel on power loss, it can be told to go silent without
 closing the connection.
+
+Like IC 3.x, it can raise and clear alerts: objects of type STATUS, created
+and deleted with a WriteParamList pushed to every connection.
 """
 
 import asyncio
 import copy
 import json
+import time
 import uuid
 
 # Modeled on a real pool + spa system with shared equipment (IC 1.064):
@@ -242,6 +246,7 @@ class FakePanel:
         self.silent = False  # when True, requests are read but never answered
         self.response_delay = 0  # seconds to wait before answering each request
         self.refuse_changes = {}  # objnam: error code to answer its changes with
+        self.refuse_conditions = set()  # conditions GetParamList answers with an error
         self.requests = []  # every request received, in order
         self.connections = 0
         self._server = None
@@ -275,6 +280,47 @@ class FakePanel:
             }
         )
 
+    def raise_alert(
+        self, objnam: str, message: str, parent: str, raised: int = 1790963580
+    ):
+        """Raise an alert like IC 3.x: create a STATUS object and push it."""
+        params = {
+            "COUNT": "1",
+            "MODE": "0",
+            "OBJNAM": objnam,
+            "OBJTYP": "STATUS",
+            "PARENT": parent,
+            "PARTY": str(raised),
+            "SHOMNU": "ON",
+            "SINDEX": "37234",
+            "SNAME": message,
+            "STATIC": "OFF",
+            "TIME": str(raised),
+        }
+        self.objects[objnam] = params
+        self.push_write_param_list(
+            {"created": [{"objnam": objnam, "params": dict(params)}]}
+        )
+
+    def clear_alert(self, objnam: str):
+        """Clear an alert like IC 3.x: delete its object and push that."""
+        del self.objects[objnam]
+        self.push_write_param_list({"deleted": [objnam]})
+
+    def push_write_param_list(self, *items: dict):
+        """Push a WriteParamList with the given items (changes, created, deleted)."""
+        now = str(int(time.time()))
+        self._broadcast(
+            {
+                "command": "WriteParamList",
+                "messageID": str(uuid.uuid4()),
+                "timeSince": now,
+                "timeNow": now,
+                "response": "200",
+                "objectList": list(items),
+            }
+        )
+
     def changes(self, objnam: str = None) -> list:
         """Return the SetParamList requests received, optionally for one object."""
         found = []
@@ -298,6 +344,14 @@ class FakePanel:
 
         if command == "GetParamList":
             condition = request.get("condition", "")
+            if condition in self.refuse_conditions:
+                return [
+                    {
+                        "command": "SendParamList",
+                        "messageID": str(uuid.uuid4()),
+                        "response": "400",
+                    }
+                ]
             keys = request["objectList"][0]["keys"]
             if condition.startswith("OBJTYP="):
                 objtype = condition.split("=", 1)[1]

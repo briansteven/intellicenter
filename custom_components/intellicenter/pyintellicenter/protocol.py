@@ -184,11 +184,13 @@ class ICProtocol(asyncio.Protocol):
             command = msg["command"]
             response = msg.get("response")
 
-            # the response field is only present when the message is a response to
-            # a request (as opposed to a 'notification')
-            # if so, we also not that a response was received
+            # the response field is present when the message answers a request:
+            # a success carries the request's messageID, an error one of its own.
+            # Pushed messages can carry it too (IC 3.x pushes WriteParamList with
+            # "response": "200" and a messageID of its own): they don't answer
+            # the request on the wire.
             answering = None
-            if response:
+            if response and (msg_id == self._inflight or response != "200"):
                 answering = self._inflight
                 self.lastResponse = time.monotonic()
                 self.responseReceived()

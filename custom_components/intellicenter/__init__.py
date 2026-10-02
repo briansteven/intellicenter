@@ -16,7 +16,13 @@ from homeassistant.helpers import (
 )
 from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN, SETUP_TIMEOUT, connection_signal, update_signal
+from .const import (
+    DOMAIN,
+    SETUP_TIMEOUT,
+    alerts_signal,
+    connection_signal,
+    update_signal,
+)
 from .entity import get_device, system_device_info, system_id
 from .equipment import EquipmentWatcher
 from .issues import HeaterAssignmentMonitor
@@ -183,6 +189,14 @@ class IntelliCenterHandler(ConnectionHandler):
         self.monitor.async_check(updates)
         if self.watcher:
             self.watcher.async_updated(updates)
+
+    @callback
+    def alertsChanged(self, controller, alerts: dict[str, dict[str, str]]):
+        """Handle alerts raised or cleared by the IntelliCenter."""
+        _LOGGER.debug(f"{len(alerts)} active alert(s)")
+        dispatcher.async_dispatcher_send(
+            self._hass, alerts_signal(self._entry_id), alerts
+        )
 
     @callback
     def stop_watching(self) -> None:

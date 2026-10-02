@@ -4,6 +4,43 @@ Changes in briansteven/intellicenter since dwradcliffe/intellicenter v2.0.0.
 Versions 2.x are drop-in replacements for dwradcliffe's (with the water heater
 state change in 2.2.0); 3.0.0 makes this an independent version.
 
+## 3.5.0
+
+### Alerts (IntelliCenter firmware 3.x)
+
+IntelliCenter firmware 3.x reports its alerts ("IntelliChlor 1: Communication
+Lost"...) as they are raised and cleared. Before, each of these messages logged
+an error ("error 'changes' while processing ..."). They are now an "Alerts"
+sensor on the IntelliCenter's device: its state is the number of active
+alerts, and its `alerts` attribute lists them, oldest first:
+
+```yaml
+alerts:
+  - message: "IntelliChlor 1: Communication Lost"
+    equipment: IntelliChlor 1
+    since: "2026-10-02T17:53:00+00:00"
+    id: tCA05
+```
+
+The alerts active when the integration connects (or reconnects) are read too.
+To be notified, trigger an automation on the sensor's state or its `alerts`
+attribute. Older firmware (such as 1.064) doesn't report alerts as they come
+and go, so it doesn't get this sensor.
+
+### Firmware updates
+
+After the IntelliCenter's firmware changes (it restarts, and the integration
+reconnects), the integration reloads a minute later, so that what depends on
+the firmware (the alerts sensor, the version shown on the IntelliCenter's
+device) is up to date.
+
+### Fix
+
+The messages firmware 3.x pushes carry `"response": "200"` like an answer.
+They were taken for the answer to the request waiting for one, so the next
+request went out early and an error answering the first one could be blamed on
+the next (Home Assistant then reported a timeout instead of the refusal).
+
 ## 3.4.1
 
 ### Feed totals removed

@@ -15,7 +15,9 @@ from homeassistant.const import (
     UnitOfPower,
     UnitOfVolumeFlowRate,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import dispatcher
+from homeassistant.util import dt as dt_util
 
 try:
     from homeassistant.const import UnitOfRatio
@@ -26,6 +28,7 @@ except ImportError:  # older Home Assistant releases without UnitOfRatio
         CONCENTRATION_PARTS_PER_MILLION as PARTS_PER_MILLION,
     )
 
+from .const import alerts_signal
 from .entity import PoolEntity
 from .pyintellicenter import (
     BODY_TYPE,
@@ -35,6 +38,7 @@ from .pyintellicenter import (
     LSTTMP_ATTR,
     ORPTNK_ATTR,
     ORPVAL_ATTR,
+    PARENT_ATTR,
     PHTNK_ATTR,
     PHVAL_ATTR,
     PUMP_TYPE,
@@ -43,7 +47,10 @@ from .pyintellicenter import (
     RPM_ATTR,
     SALT_ATTR,
     SENSE_TYPE,
+    SNAME_ATTR,
     SOURCE_ATTR,
+    SYSTEM_TYPE,
+    TIME_ATTR,
     ModelController,
     PoolObject,
 )
@@ -157,6 +164,8 @@ async def async_setup_entry(
                         name="Salt",
                         icon="mdi:shaker-outline",
                     )
+        elif obj.objtype == SYSTEM_TYPE and controller.supportsAlerts:
+            sensors.append(AlertsSensor(entry, controller, obj))
     async_add_entities(sensors)
 
 
@@ -235,3 +244,86 @@ class TankLevelSensor(PoolSensor):
         if numeric is None:
             return None
         return max(int(numeric) - 1, 0)
+
+
+# the alerts sensor's unique ID ends with this (after the system object's name)
+ALERTS_KEY = "ALERTS"
+
+
+class AlertsSensor(PoolEntity, SensorEntity):
+    """The number of alerts the IntelliCenter has raised and not cleared.
+
+    The alerts ("IntelliChlor 1: Communication Lost"...) are in the "alerts"
+    attribute, oldest first: their message, the equipment they are about and
+    when they were raised. Only firmware that pushes them as they are raised and
+    cleared (IC 3.x) gets this sensor.
+    """
+
+    def __init__(
+        self, entry: ConfigEntry, controller: ModelController, poolObject: PoolObject
+    ):
+        """Initialize."""
+        super().__init__(
+            entry, controller, poolObject, attribute_key=ALERTS_KEY, name="Alerts"
+        )
+
+    async def async_added_to_hass(self):
+        """Entity is added to Home Assistant."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            dispatcher.async_dispatcher_connect(
+                self.hass, alerts_signal(self._entry_id), self._alerts_callback
+            )
+        )
+
+    @callback
+    def _alerts_callback(self, alerts: dict[str, dict[str, str]]) -> None:
+        self.async_write_ha_state()
+
+    def isUpdated(self, updates: dict[str, dict[str, str]]) -> bool:
+        """Return False: changes to the objects don't change the alerts."""
+        return False
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of active alerts."""
+        return len(self._controller.alerts)
+
+    @property
+    def icon(self) -> str:
+        """Return the icon."""
+        return (
+            "mdi:alert-circle" if self._controller.alerts else "mdi:check-circle-outline"
+        )
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return the alerts, oldest first."""
+        model = self._controller.model
+        alerts = []
+        for objnam, params in self._controller.alerts.items():
+            alert = {"message": params.get(SNAME_ATTR) or objnam}
+            parent = model[params.get(PARENT_ATTR)]
+            if parent is not None:
+                alert["equipment"] = parent.sname or parent.objnam
+            since = _raised(params)
+            if since is not None:
+                alert["since"] = since.isoformat()
+            alert["id"] = objnam
+            alerts.append(alert)
+        alerts.sort(key=lambda alert: (alert.get("since", ""), alert["id"]))
+        return {"alerts": alerts}
+
+
+def _raised(params: dict[str, str]):
+    """Return when an alert was raised (TIME, in seconds since 1970), if known."""
+    try:
+        seconds = int(params.get(TIME_ATTR))
+    except (TypeError, ValueError):
+        return None
+    if seconds <= 0:
+        return None
+    try:
+        return dt_util.utc_from_timestamp(seconds)
+    except (OverflowError, OSError, ValueError):
+        return None

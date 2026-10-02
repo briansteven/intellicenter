@@ -102,3 +102,42 @@ def test_response_processed_during_the_write_keeps_the_queue_moving():
 
     protocol.sendRequest("second")
     assert protocol._transport.written == [b"first", b"second"]
+
+
+def test_pushed_message_with_a_response_does_not_answer_the_request():
+    """IC 3.x pushes WriteParamList with "response": "200" and an ID of its own.
+
+    It doesn't answer the request on the wire: the next request waits, and an
+    error that follows (with an ID of its own too) is still matched to the
+    request it answers.
+    """
+    protocol, controller = make_protocol()
+    protocol.sendRequest("first", "1")
+    protocol.sendRequest("second", "2")
+    assert protocol._transport.written == [b"first"]
+
+    protocol.data_received(
+        line(
+            {
+                "command": "WriteParamList",
+                "messageID": "a7e1c6d2-0000-0000-0000-000000000000",
+                "response": "200",
+                "objectList": [{"deleted": ["tCA05"]}],
+            }
+        )
+    )
+    assert controller.answering is None
+    assert protocol._transport.written == [b"first"]
+    assert protocol.lastResponse is None
+
+    protocol.data_received(
+        line({"command": "SetParamList", "messageID": "random", "response": "404"})
+    )
+    assert controller.answering == "1"
+    assert protocol._transport.written == [b"first", b"second"]
+
+    protocol.data_received(
+        line({"command": "SendParamList", "messageID": "2", "response": "200"})
+    )
+    assert controller.answering == "2"
+    assert protocol._out_pending == 0

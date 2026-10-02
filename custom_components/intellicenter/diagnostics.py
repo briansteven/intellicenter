@@ -66,5 +66,6 @@ async def async_get_config_entry_diagnostics(
             "keep_alive_interval": controller.keepAliveInterval,
             "keep_alive_timeout": controller.keepAliveTimeout,
         },
+        "alerts": controller.alerts,
         "objects": objects,
     }

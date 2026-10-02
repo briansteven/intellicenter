@@ -21,3 +21,8 @@ def update_signal(entry_id: str) -> str:
 def connection_signal(entry_id: str) -> str:
     """Return the dispatcher signal for a system's connection state."""
     return f"{DOMAIN}_CONNECTION_{entry_id}"
+
+
+def alerts_signal(entry_id: str) -> str:
+    """Return the dispatcher signal for changes to a system's active alerts."""
+    return f"{DOMAIN}_ALERTS_{entry_id}"
