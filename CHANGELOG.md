@@ -4,6 +4,25 @@ Changes in briansteven/intellicenter since dwradcliffe/intellicenter v2.0.0.
 Versions 2.x are drop-in replacements for dwradcliffe's (with the water heater
 state change in 2.2.0); 3.0.0 makes this an independent version.
 
+## 3.7.1
+
+### Connection
+
+- **A slow panel is no longer dropped while connecting.** The keep-alive check
+  started as soon as the panel was identified, while the rest of the system was
+  still loading. The panel answers one request at a time, so the check waited
+  behind the loading requests and, when each of them took a while, dropped a
+  connection that was answering, and the next attempt failed the same way. The
+  check now starts once everything is loaded (until then, the 60-second
+  connecting limit applies).
+- **Reconnecting resumes if the panel closes the connection just as connecting
+  finishes.** The attempt reported success with no connection, and nothing
+  reconnected until Home Assistant restarted. It now tries again.
+- **Unloading or reloading the integration while it connects no longer leaves
+  a connection open or a reconnection running.**
+
+Found by reviews of dwradcliffe/intellicenter#50 and #53.
+
 ## 3.7.0
 
 ### Schedules

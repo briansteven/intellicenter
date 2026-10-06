@@ -20,7 +20,11 @@ class FakeIntelliCenter:
         self.error_after_first = False  # answer later requests with an error code
         # ... and with another messageID, as the real panel sometimes does
         self.mismatched_error_ids = False
+        # close the connection right after sending this many answers on it
+        # (once: later connections are left open)
+        self.close_after_answers = 0
         self.connections = 0
+        self.disconnects = 0  # connections the client closed
         self.requests = 0
         self._server = None
         self._writers = []
@@ -44,8 +48,12 @@ class FakeIntelliCenter:
         buffer = ""
         answered = 0
         while True:
-            data = await reader.read(4096)
+            try:
+                data = await reader.read(4096)
+            except ConnectionResetError:
+                data = b""
             if not data:
+                self.disconnects += 1
                 return
             buffer += data.decode()
             while buffer:
@@ -84,4 +92,9 @@ class FakeIntelliCenter:
                     ],
                 }
                 writer.write((json.dumps(reply) + "\r\n").encode())
+                if self.close_after_answers and answered == self.close_after_answers:
+                    # the answer and the end of the connection arrive together
+                    self.close_after_answers = 0
+                    writer.close()
+                    return
                 await writer.drain()
