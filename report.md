@@ -1,27 +1,19 @@
-# Fork watch, 2026-10-05
+# Fork watch, 2026-10-12
 
-Changes since the previous run (2026-10-01T18:42:46Z).
+Changes since the previous run (2026-10-05T13:38:14Z).
 
 ## Tests against the latest Home Assistant
 
-- Home Assistant 2026.10.0b0: **success**
+- Home Assistant 2026.10.1: **success**
 
 ## Forks with new commits
 
-### [dwradcliffe/intellicenter](https://github.com/dwradcliffe/intellicenter) (fork of jlvaillant/intellicenter)
-
-- `main` (updated), 2 commit(s) of its own:
-  - 2026-09-30 [`59c5df0`](https://github.com/dwradcliffe/intellicenter/commit/59c5df0) Use UnitOfRatio.PARTS_PER_MILLION for the salt sensor (briansteven)
-  - 2026-10-03 [`cd30b83`](https://github.com/dwradcliffe/intellicenter/commit/cd30b83) Merge pull request #49 from briansteven/fix/ppm-unit-deprecation (dwradcliffe)
-
-### [zia-ep/ha_intellicenter](https://github.com/zia-ep/ha_intellicenter) (fork of dwradcliffe/intellicenter)
-
-- `main` (updated), 1 commit(s) of its own:
-  - 2026-10-03 [`d1a83c4`](https://github.com/zia-ep/ha_intellicenter/commit/d1a83c4) Add pump speed numbers for each pump circuit (jzabrams)
+None.
 
 ## Our pull requests upstream
 
-- [dwradcliffe/intellicenter#49](https://github.com/dwradcliffe/intellicenter/pull/49) Use UnitOfRatio.PARTS_PER_MILLION for the salt sensor by briansteven (merged, updated 2026-10-03)
+- [dwradcliffe/intellicenter#53](https://github.com/dwradcliffe/intellicenter/pull/53) Keep reconnecting when the connection drops before the system is identified by briansteven (open, updated 2026-10-06)
+- [dwradcliffe/intellicenter#50](https://github.com/dwradcliffe/intellicenter/pull/50) Detect a silent IntelliCenter connection and reconnect by briansteven (open, updated 2026-10-06)
 
 ## Other pull requests (new or updated)
 
