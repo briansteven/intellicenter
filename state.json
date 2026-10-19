@@ -97,7 +97,7 @@
    "main": "8694fbc7b1c96f9e85d89a3651e13ea22715a513"
   },
   "joyfulhouse/intellicenter": {
-   "main": "d0c54ac4666fc5838434b54e1e11429911316277"
+   "main": "7724f95411cf09590ca93c1ab3baa40230d60de0"
   },
   "jsrook/intellicenter": {
    "main": "c142397838c6d72b2f1cd22345c7e818c92ca406"
@@ -132,7 +132,7 @@
    "main": "aba8b9786dbb682e441756b4a335995242ed62fc"
   },
   "patedit/intellicenter": {
-   "fix/system-mode-manual": "b17770bc52dfcadce587cbbcfd6476a42458e2b8",
+   "fix/system-mode-manual": "69b03b9b418746f6cd61e98d2338052a78a1a244",
    "main": "d0c54ac4666fc5838434b54e1e11429911316277"
   },
   "philipflesher/intellicenter": {
@@ -184,7 +184,7 @@
    "main": "d1a83c4856f67be164e19fbe334fe2f3f8edb71f"
   }
  },
- "last_run": "2026-10-12T13:49:37Z",
+ "last_run": "2026-10-19T13:32:50Z",
  "network": {
   "NTillmann/intellicenter": "jlvaillant/intellicenter",
   "TacoLover619/home-assistant-intellicenter": "dwradcliffe/intellicenter",
