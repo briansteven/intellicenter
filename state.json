@@ -97,7 +97,10 @@
    "main": "8694fbc7b1c96f9e85d89a3651e13ea22715a513"
   },
   "joyfulhouse/intellicenter": {
-   "main": "7724f95411cf09590ca93c1ab3baa40230d60de0"
+   "docs/188-schedule-management": "0e392c936383527feb55d8f4f79cc81ba827d0f1",
+   "docs/pentair-app-capability-audit": "35c4a4e952e5d3161c056414e8dea4e40481664e",
+   "feature/187-field-receipts": "d5105b8eb4ca709d275620c432b057085a7d2280",
+   "main": "b179d161d9215f0584b698c27d2e5a7a2356b768"
   },
   "jsrook/intellicenter": {
    "main": "c142397838c6d72b2f1cd22345c7e818c92ca406"
@@ -184,7 +187,7 @@
    "main": "d1a83c4856f67be164e19fbe334fe2f3f8edb71f"
   }
  },
- "last_run": "2026-10-19T13:32:50Z",
+ "last_run": "2026-10-26T14:49:34Z",
  "network": {
   "NTillmann/intellicenter": "jlvaillant/intellicenter",
   "TacoLover619/home-assistant-intellicenter": "dwradcliffe/intellicenter",
