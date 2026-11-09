@@ -109,6 +109,13 @@
    "josh-updates": "0c91a6ea02ca1c3423b845568b39cb0a45af7b08",
    "main": "4675771f695c5458f9a1f1a3e6cb2e59de7ec321"
   },
+  "kash04/intellicenter": {
+   "docs/188-schedule-management": "0e392c936383527feb55d8f4f79cc81ba827d0f1",
+   "docs/pentair-app-capability-audit": "35c4a4e952e5d3161c056414e8dea4e40481664e",
+   "feature/187-field-receipts": "d5105b8eb4ca709d275620c432b057085a7d2280",
+   "feature/alert-sensors": "9a0f95f4911c238717c8b9342256c54b3d93579b",
+   "main": "233af167b242f487dac7399e0169c25ea39e50e3"
+  },
   "kilrdgh/intellicenter": {
    "main": "4675771f695c5458f9a1f1a3e6cb2e59de7ec321"
   },
@@ -165,6 +172,10 @@
    "initial": "5d6f708cf73b12e170af25f02f54cd3e9efb2151",
    "main": "8803330e1eb4094e1138f06383b40ffa21b6ec4e"
   },
+  "sparment/intellicenter": {
+   "fix/ha-2026-11-deprecations": "e291191b80328ff1e9dab1edb65bcef6042c44f5",
+   "main": "cd30b83806c0439e856e97d33f93db1764256dbd"
+  },
   "stgarrity/intellicenter": {
    "circuit_groups": "48a9d396058d2b862ac2eef9e9505bcd27771208",
    "main": "4675771f695c5458f9a1f1a3e6cb2e59de7ec321",
@@ -187,7 +198,7 @@
    "main": "d1a83c4856f67be164e19fbe334fe2f3f8edb71f"
   }
  },
- "last_run": "2026-11-02T13:21:32Z",
+ "last_run": "2026-11-09T13:21:59Z",
  "network": {
   "NTillmann/intellicenter": "jlvaillant/intellicenter",
   "TacoLover619/home-assistant-intellicenter": "dwradcliffe/intellicenter",
@@ -213,6 +224,7 @@
   "joyfulhouse/intellicenter": "dwradcliffe/intellicenter",
   "jsrook/intellicenter": "jlvaillant/intellicenter",
   "jstarllc/Josh-Intellicenter": "dwradcliffe/intellicenter",
+  "kash04/intellicenter": "joyfulhouse/intellicenter",
   "kilrdgh/intellicenter": "dwradcliffe/intellicenter",
   "loopj/intellicenter": "dwradcliffe/intellicenter",
   "merritt925/intellicenter": "joyfulhouse/intellicenter",
@@ -227,6 +239,7 @@
   "scottshanafelt/intellicenter": "joyfulhouse/intellicenter",
   "sebr/intellicenter-home-assistant": "dwradcliffe/intellicenter",
   "snagytx/intellicenter": "jlvaillant/intellicenter",
+  "sparment/intellicenter": "dwradcliffe/intellicenter",
   "stgarrity/intellicenter": "dwradcliffe/intellicenter",
   "teast5/intellicenter": "jlvaillant/intellicenter",
   "thewolfman56/intellicenter": "dwradcliffe/intellicenter",

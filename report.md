@@ -1,6 +1,6 @@
-# Fork watch, 2026-11-02
+# Fork watch, 2026-11-09
 
-Changes since the previous run (2026-10-26T14:49:34Z).
+Changes since the previous run (2026-11-02T13:21:32Z).
 
 ## Tests against the latest Home Assistant
 
@@ -8,12 +8,22 @@ Changes since the previous run (2026-10-26T14:49:34Z).
 
 ## Forks with new commits
 
-### [joyfulhouse/intellicenter](https://github.com/joyfulhouse/intellicenter) (fork of dwradcliffe/intellicenter)
+### [kash04/intellicenter](https://github.com/kash04/intellicenter) (fork of joyfulhouse/intellicenter)
 
-- `main` (updated), 3 commit(s) of its own:
-  - 2026-10-26 [`1cc7a8d`](https://github.com/joyfulhouse/intellicenter/commit/1cc7a8d) fix: reconcile stale telemetry via pyintellicenter 0.3.2 (#213) (btli)
-  - 2026-10-27 [`e6e3c47`](https://github.com/joyfulhouse/intellicenter/commit/e6e3c47) chore(release): prepare 3.12.2 (btli)
-  - 2026-10-27 [`233af16`](https://github.com/joyfulhouse/intellicenter/commit/233af16) Merge pull request #215 from joyfulhouse/release/3.12.2 (btli)
+- `docs/188-schedule-management` (new fork), 1 commit(s) of its own:
+  - 2026-10-25 [`0e392c9`](https://github.com/kash04/intellicenter/commit/0e392c9) docs: record panel schedule management delivery dependencies (btli)
+- `docs/pentair-app-capability-audit` (new fork), 1 commit(s) of its own:
+  - 2026-10-20 [`35c4a4e`](https://github.com/kash04/intellicenter/commit/35c4a4e) docs: add Pentair app capability audit and protocol findings (btli)
+- `feature/187-field-receipts` (new fork), 1 commit(s) of its own:
+  - 2026-10-25 [`d5105b8`](https://github.com/kash04/intellicenter/commit/d5105b8) Expose optional restriction field receipt diagnostics (btli)
+- `feature/alert-sensors` (new fork), 2 commit(s) of its own:
+  - 2026-11-04 [`2e2f41b`](https://github.com/kash04/intellicenter/commit/2e2f41b) feat: surface read-only chlorinator faults and controller alerts (cursoragent)
+  - 2026-11-04 [`9a0f95f`](https://github.com/kash04/intellicenter/commit/9a0f95f) fix: include parented status alerts in the chlorinator summary (cursoragent)
+
+### [sparment/intellicenter](https://github.com/sparment/intellicenter) (fork of dwradcliffe/intellicenter)
+
+- `fix/ha-2026-11-deprecations` (new fork), 1 commit(s) of its own:
+  - 2026-11-07 [`e291191`](https://github.com/sparment/intellicenter/commit/e291191) Fix Home Assistant 2026.11 deprecation warnings (sparment)
 
 ## Our pull requests upstream
 
@@ -21,14 +31,13 @@ No activity.
 
 ## Other pull requests (new or updated)
 
-- [joyfulhouse/intellicenter#215](https://github.com/joyfulhouse/intellicenter/pull/215) chore(release): prepare 3.12.2 by btli (merged, updated 2026-10-27)
-- [joyfulhouse/intellicenter#213](https://github.com/joyfulhouse/intellicenter/pull/213) fix: reconcile stale telemetry via pyintellicenter 0.3.2 by btli (merged, updated 2026-10-26)
+- [dwradcliffe/intellicenter#55](https://github.com/dwradcliffe/intellicenter/pull/55) Fix Home Assistant 2026.11 deprecation warnings by sparment (open, updated 2026-11-07)
 
 ## New issues
 
-- [joyfulhouse/intellicenter#214](https://github.com/joyfulhouse/intellicenter/issues/214) Telemetry reconciliation follow-ups (options flow, test hardening, field confirmation) by btli (open)
-- [joyfulhouse/intellicenter#212](https://github.com/joyfulhouse/intellicenter/issues/212) Air, Water and Salt sensors stop updating after connect while pump and Pool Last Temp keep updating (v3.12.0 and v3.12.1) by bmguidry (closed)
+- [dwradcliffe/intellicenter#54](https://github.com/dwradcliffe/intellicenter/issues/54) HA 2026.11: CONN_CLASS_LOCAL_PUSH removed in 2027.5; water heater native_* properties needed by 2027.11 by sooner2k1 (open)
+- [joyfulhouse/intellicenter#217](https://github.com/joyfulhouse/intellicenter/issues/217) HA 2026.11: climate and water heater need the native_* temperature API before 2027.11 by sooner2k1 (open)
 
 ## New releases
 
-- [joyfulhouse/intellicenter v3.12.2](https://github.com/joyfulhouse/intellicenter/releases/tag/v3.12.2) IntelliCenter 3.12.2
+None.
