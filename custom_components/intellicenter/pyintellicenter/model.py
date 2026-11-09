@@ -9,12 +9,26 @@ from .attributes import (
     FEATR_ATTR,
     OBJTYP_ATTR,
     PARENT_ATTR,
+    PROBE_ATTR,
     SNAME_ATTR,
     STATUS_ATTR,
     SUBTYP_ATTR,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# attributes subscribed after the others: a value subscribed under two names
+# (a sensor's PROBE is its SOURCE before calibration) may only be pushed for the
+# name subscribed first, so the one shown goes first
+SUBSCRIBED_LAST = (PROBE_ATTR,)
+
+
+def orderedAttributes(attributes) -> List[str]:
+    """Return attributes in the order to subscribe to them, the same every time.
+
+    (A set's order changes with every Python process.)
+    """
+    return sorted(attributes, key=lambda key: (key in SUBSCRIBED_LAST, key))
 
 # ---------------------------------------------------------------------------
 
@@ -235,7 +249,9 @@ class PoolModel:
                 # we will default to all know attributes for this type
                 attributes = ALL_ATTRIBUTES_BY_TYPE.get(object.objtype)
             if attributes:
-                query.append({"objnam": object.objnam, "keys": list(attributes)})
+                query.append(
+                    {"objnam": object.objnam, "keys": orderedAttributes(attributes)}
+                )
         return query
 
     def processUpdates(self, updates: list):

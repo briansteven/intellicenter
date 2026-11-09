@@ -374,7 +374,25 @@ class FakePanel:
                         "response": "400",
                     }
                 ]
-            keys = request["objectList"][0]["keys"]
+            items = request["objectList"]
+            if not condition and all(item["objnam"] != "INCR" for item in items):
+                # explicit objects, each with its own keys
+                return [
+                    {
+                        "command": "SendParamList",
+                        "messageID": msg_id,
+                        "response": "200",
+                        "objectList": [
+                            {
+                                "objnam": item["objnam"],
+                                "params": self._values(item["objnam"], item["keys"]),
+                            }
+                            for item in items
+                            if item["objnam"] in self.objects
+                        ],
+                    }
+                ]
+            keys = items[0]["keys"]
             if condition.startswith("OBJTYP="):
                 objtype = condition.split("=", 1)[1]
                 names = [n for n, o in self.objects.items() if o["OBJTYP"] == objtype]

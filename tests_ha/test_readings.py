@@ -359,3 +359,40 @@ async def test_saturation_index_after_a_reload_is_read_again(
     panel.objects["CHM01"]["QUALTY"] = "-0.1"  # recomputed, not pushed
     await wait_for(lambda: hass.states.get(QUALITY).state == "-0.1")
     assert "1.27" not in states
+
+
+# --- readings that stopped being pushed ---------------------------------------
+
+
+@pytest.mark.parametrize(
+    "connection_settings",
+    [{"keepAliveInterval": 60, "keepAliveTimeout": 30, "readingsRefreshInterval": 0.1}],
+)
+async def test_readings_not_pushed_still_update(
+    hass: HomeAssistant, integration, panel
+) -> None:
+    """Temperatures and salt the panel stopped pushing are read again."""
+    water = "sensor.test_pool_water_sensor_1"
+    air = "sensor.test_pool_air_sensor"
+    assert hass.states.get(water).state == "78"
+
+    # changed at the panel without a push (joyfulhouse/intellicenter#212)
+    panel.objects["SSW11"]["SOURCE"] = "75"
+    panel.objects["_A135"]["SOURCE"] = "64"
+    panel.objects["CHR01"]["SALT"] = "3300"
+    panel.objects["B1202"]["LSTTMP"] = "97"
+
+    await wait_for(lambda: hass.states.get(SALT).state == "3300")
+    assert hass.states.get(water).state == "75"
+    assert hass.states.get(air).state == "64"
+    heater = hass.states.get("water_heater.spa_heater")
+    assert heater.attributes["current_temperature"] == 97
+
+
+async def test_water_heater_temperatures(hass: HomeAssistant, integration) -> None:
+    """The water heater shows its temperatures (native_* on HA 2026.11+)."""
+    heater = hass.states.get("water_heater.spa_heater")
+    assert heater.attributes["current_temperature"] == 79
+    assert heater.attributes["temperature"] == 99
+    assert heater.attributes["min_temp"] == 40
+    assert heater.attributes["max_temp"] == 104

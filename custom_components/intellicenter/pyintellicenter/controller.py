@@ -10,14 +10,20 @@ import time
 from typing import Optional
 
 from .attributes import (
+    BODY_TYPE,
     CHEM_TYPE,
+    LSTTMP_ATTR,
     MODE_ATTR,
     OBJTYP_ATTR,
     PARENT_ATTR,
     PHVAL_ATTR,
+    PROBE_ATTR,
     PROPNAME_ATTR,
     QUALTY_ATTR,
+    SALT_ATTR,
+    SENSE_TYPE,
     SNAME_ATTR,
+    SOURCE_ATTR,
     STATUS_TYPE,
     SUBTYP_ATTR,
     SYSTEM_TYPE,
@@ -484,6 +490,19 @@ PLACEHOLDER_QUALITY = "1.27"
 # it is read again this many seconds after the IntelliChem's other values change
 QUALITY_REFRESH_DELAY = 10
 
+# readings read again every READINGS_REFRESH_INTERVAL seconds (when tracked), by
+# object type: some IntelliCenters stop pushing a value subscribed under two
+# names (a sensor's SOURCE and PROBE are the same reading) for all but the
+# first, so the other can freeze while the connection is fine (seen as air and
+# water temperatures stuck for days after a reconnect, joyfulhouse/intellicenter
+# issue 212; why salt froze there too isn't known)
+READINGS = {
+    SENSE_TYPE: [SOURCE_ATTR, PROBE_ATTR],
+    BODY_TYPE: [LSTTMP_ATTR],
+    CHEM_TYPE: [SALT_ATTR],
+}
+READINGS_REFRESH_INTERVAL = 60
+
 # what is kept of an alert (an object of type STATUS): its message (SNAME), the
 # object it is about (PARENT) and when it was raised (TIME, seconds since 1970)
 ALERT_KEYS = [OBJTYP_ATTR, SNAME_ATTR, PARENT_ATTR, TIME_ATTR, MODE_ATTR]
@@ -505,10 +524,18 @@ class ModelController(BaseController):
         loop=None,
         keepAliveInterval=60,
         keepAliveTimeout=30,
+        readingsRefreshInterval=READINGS_REFRESH_INTERVAL,
     ):
-        """Initialize the controller."""
+        """Initialize the controller.
+
+        readingsRefreshInterval: seconds between reads of the READINGS, in case
+        the system stopped pushing them (0 or None: never)
+        """
         super().__init__(host, port, loop, keepAliveInterval, keepAliveTimeout)
         self._model: PoolModel = model
+
+        self._readingsRefreshInterval = readingsRefreshInterval
+        self._readingsTask: Optional[asyncio.Task] = None
 
         self._updatedCallback = None
 
@@ -650,8 +677,52 @@ class ModelController(BaseController):
             if self._qualityRefreshes.get(objnam) is asyncio.current_task():
                 del self._qualityRefreshes[objnam]
 
+    async def start(self) -> None:
+        """Connect, load the model, then keep the readings fresh."""
+        await super().start()
+        if self._readingsRefreshInterval and not self._readingsTask:
+            self._readingsTask = asyncio.create_task(self._refreshReadings())
+
+    def _readingsRequest(self) -> list:
+        """Return the objectList of a GetParamList for the tracked READINGS."""
+        objectList = []
+        for item in self._model.attributesToTrack():
+            obj = self._model[item["objnam"]]
+            if obj is None or (obj.objtype == CHEM_TYPE and obj.subtype != "ICHLOR"):
+                continue
+            keys = [key for key in READINGS.get(obj.objtype, []) if key in item["keys"]]
+            if keys:
+                objectList.append({"objnam": obj.objnam, "keys": keys})
+        return objectList
+
+    async def _refreshReadings(self) -> None:
+        """Periodically read the READINGS again, as pushes of them can stop.
+
+        What changed is applied like a push.
+        """
+        while self._protocol:
+            await asyncio.sleep(self._readingsRefreshInterval)
+            objectList = self._readingsRequest()
+            if not self._protocol or not objectList:
+                continue
+            try:
+                result = await self.sendCmd(
+                    "GetParamList", {"condition": "", "objectList": objectList}
+                )
+                updates = self._applyUpdates(result.get("objectList", []))
+            except asyncio.CancelledError:
+                raise
+            except Exception as err:  # noqa: BLE001 - the next round tries again
+                _LOGGER.debug(f"cannot read the readings again: {err!r}")
+                continue
+            if updates:
+                _LOGGER.debug(f"readings that weren't pushed: {updates}")
+
     def stop(self):
         """Stop all activities from this controller and disconnect."""
+        if self._readingsTask:
+            self._readingsTask.cancel()
+            self._readingsTask = None
         for task in self._qualityRefreshes.values():
             task.cancel()
         self._qualityRefreshes.clear()

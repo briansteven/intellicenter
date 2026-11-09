@@ -132,7 +132,7 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
         )
 
     @property
-    def temperature_unit(self):
+    def native_temperature_unit(self):
         """Return the unit of measurement used by the platform."""
         return self.pentairTemperatureSettings()
 
@@ -156,14 +156,22 @@ class PoolWaterHeater(PoolEntity, WaterHeaterEntity, RestoreEntity):
             return None
 
     @property
-    def current_temperature(self):
+    def native_current_temperature(self):
         """Return the current temperature."""
         return self._as_float(self._poolObject[LSTTMP_ATTR])
 
     @property
-    def target_temperature(self):
+    def native_target_temperature(self):
         """Return the temperature we try to reach."""
         return self._as_float(self._poolObject[LOTMP_ATTR])
+
+    # Home Assistant 2026.11 reads the native_* properties (the old names are
+    # deprecated and stop working in 2027.11); older releases read the old
+    # names. min_temp and max_temp keep their names in both.
+    if not hasattr(WaterHeaterEntity, "native_temperature_unit"):
+        temperature_unit = native_temperature_unit
+        current_temperature = native_current_temperature
+        target_temperature = native_target_temperature
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperatures."""

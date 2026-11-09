@@ -4,6 +4,27 @@ Changes in briansteven/intellicenter since dwradcliffe/intellicenter v2.0.0.
 Versions 2.x are drop-in replacements for dwradcliffe's (with the water heater
 state change in 2.2.0); 3.0.0 makes this an independent version.
 
+## 3.7.2
+
+### Readings
+
+- **Temperatures and salt no longer freeze when the panel stops pushing them.**
+  Some IntelliCenters only push a value subscribed under two names (a
+  sensor's reading and its uncalibrated probe value) for the first of them,
+  so the air and water temperatures could stay the same for days while
+  everything else updated. The sensors' readings, the bodies' temperatures and
+  the salt level are now read again every minute, and the shown reading is
+  subscribed first (it was in a random order at each start). Reported in
+  joyfulhouse/intellicenter#212.
+
+### Home Assistant 2026.11
+
+- **The water heaters use Home Assistant's new temperature properties**
+  (`native_temperature_unit`, `native_current_temperature`,
+  `native_target_temperature`). The old ones are deprecated in 2026.11 and stop
+  working in 2027.11. Older Home Assistant releases keep working. Same as
+  dwradcliffe/intellicenter#55.
+
 ## 3.7.1
 
 ### Connection
