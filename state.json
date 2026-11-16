@@ -48,7 +48,7 @@
   },
   "dwradcliffe/intellicenter": {
    "circuit_groups": "48a9d396058d2b862ac2eef9e9505bcd27771208",
-   "main": "cd30b83806c0439e856e97d33f93db1764256dbd",
+   "main": "dda29836413a327637c394180e104aeca4ef0766",
    "numbers": "82987a554cf08986b8fdc44483b4ec00bb822595"
   },
   "gmisner/intellicenter": {
@@ -121,7 +121,7 @@
   },
   "loopj/intellicenter": {
    "intellichem-tank-levels": "fa6f6a40c6ea7e630dccfa634124c83a94f0ae6e",
-   "intellichem-unit-of-measurement": "3196b5575d5464b842fb20313e31bc6c93249775",
+   "intellichem-unit-of-measurement": "bfd25e1a078091d01d93ddfd8276fbd9926e855b",
    "main": "4675771f695c5458f9a1f1a3e6cb2e59de7ec321"
   },
   "merritt925/intellicenter": {
@@ -173,7 +173,6 @@
    "main": "8803330e1eb4094e1138f06383b40ffa21b6ec4e"
   },
   "sparment/intellicenter": {
-   "fix/ha-2026-11-deprecations": "e291191b80328ff1e9dab1edb65bcef6042c44f5",
    "main": "cd30b83806c0439e856e97d33f93db1764256dbd"
   },
   "stgarrity/intellicenter": {
@@ -198,7 +197,7 @@
    "main": "d1a83c4856f67be164e19fbe334fe2f3f8edb71f"
   }
  },
- "last_run": "2026-11-09T13:21:59Z",
+ "last_run": "2026-11-16T13:41:21Z",
  "network": {
   "NTillmann/intellicenter": "jlvaillant/intellicenter",
   "TacoLover619/home-assistant-intellicenter": "dwradcliffe/intellicenter",
