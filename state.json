@@ -43,6 +43,9 @@
    "feat/contract-and-currency": "ae0829a697ae97ca84f4e064aebaee7c0cf70848",
    "main": "d8e743472e88e0e3de0a4c8e0c6169261f8b63a2"
   },
+  "dennypage/intellicenter": {
+   "main": "233af167b242f487dac7399e0169c25ea39e50e3"
+  },
   "divinebovine/intellicenter": {
    "main": "aa6d028d7c10ddcf20ece7f89c430cc8506596fe"
   },
@@ -197,7 +200,7 @@
    "main": "d1a83c4856f67be164e19fbe334fe2f3f8edb71f"
   }
  },
- "last_run": "2026-11-16T13:41:21Z",
+ "last_run": "2026-11-23T13:22:47Z",
  "network": {
   "NTillmann/intellicenter": "jlvaillant/intellicenter",
   "TacoLover619/home-assistant-intellicenter": "dwradcliffe/intellicenter",
@@ -210,6 +213,7 @@
   "bmrowe/intellicenter": "dwradcliffe/intellicenter",
   "bob-laz/intellicenter": "joyfulhouse/intellicenter",
   "brentb2529/intellicenter": "joyfulhouse/intellicenter",
+  "dennypage/intellicenter": "joyfulhouse/intellicenter",
   "divinebovine/intellicenter": "joyfulhouse/intellicenter",
   "dwradcliffe/intellicenter": "jlvaillant/intellicenter",
   "gmisner/intellicenter": "dwradcliffe/intellicenter",
